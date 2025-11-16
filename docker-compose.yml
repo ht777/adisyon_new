@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: restaurant_db
+    environment:
+      POSTGRES_DB: restaurant_db
+      POSTGRES_USER: restaurant_user
+      POSTGRES_PASSWORD: restaurant_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/init_db.py:/docker-entrypoint-initdb.d/init_db.py
+    ports:
+      - "5432:5432"
+    networks:
+      - restaurant_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U restaurant_user -d restaurant_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and session management
+  redis:
+    image: redis:7-alpine
+    container_name: restaurant_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - restaurant_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: restaurant_backend
+    environment:
+      - DATABASE_URL=postgresql://restaurant_user:restaurant_password@db:5432/restaurant_db
+      - REDIS_URL=redis://redis:6379
+      - SECRET_KEY=your-secret-key-here-change-in-production
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:8080
+      - ENVIRONMENT=production
+    volumes:
+      - ./frontend/static:/app/frontend/static
+      - ./backend/uploads:/app/uploads
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - restaurant_network
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: restaurant_nginx
+    ports:
+      - "80:80"
+      #- "443:443"  # SSL disabled for development
+    volumes:
+      - ./nginx-dev.conf:/etc/nginx/nginx.conf:ro
+      - ./frontend/static:/usr/share/nginx/html/static:ro
+      #- ./ssl:/etc/nginx/ssl:ro  # SSL disabled for development
+    depends_on:
+      - backend
+    networks:
+      - restaurant_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  restaurant_network:
+    driver: bridge
