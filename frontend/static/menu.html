@@ -7,6 +7,15 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        .sticky-categories {
+            position: sticky;
+            top: 73px; /* Header height (64px) + padding (9px) */
+            background: white;
+            z-index: 30;
+            padding: 12px 0;
+            border-bottom: 1px solid #e5e7eb;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
         
         .sticky-bottom {
             position: fixed;
@@ -17,19 +26,66 @@
             border-top: 1px solid #e5e7eb;
             z-index: 50;
         }
-        .product-card {
-            transition: transform 0.2s ease-in-out;
+        
+        .category-btn {
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
         }
-        .product-card:hover {
+        
+        .category-btn:hover {
             transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-color: #3b82f6;
         }
+        
+        .category-btn.active {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            border-color: #3b82f6;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+        
+        .product-card {
+            transition: all 0.3s ease;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .product-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            border-color: #3b82f6;
+        }
+        
+        .add-to-cart-animation {
+            animation: addToCartFly 0.6s ease-out;
+        }
+        
+        @keyframes addToCartFly {
+            0% {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.1) translateY(-10px);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(0.8) translateY(-50px);
+                opacity: 0;
+            }
+        }
+        
         .fade-in {
             animation: fadeIn 0.3s ease-in-out;
         }
+        
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        
         .modal {
             display: none;
             position: fixed;
@@ -40,10 +96,23 @@
             background: rgba(0,0,0,0.5);
             z-index: 100;
         }
+        
         .modal.active {
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+        
+        .cart-icon-bounce {
+            animation: cartBounce 0.5s ease-out;
+        }
+        
+        @keyframes cartBounce {
+            0%, 20% { transform: scale(1); }
+            40% { transform: scale(1.3); }
+            60% { transform: scale(0.9); }
+            80% { transform: scale(1.1); }
+            100% { transform: scale(1); }
         }
     </style>
 </head>
@@ -81,10 +150,12 @@
             </button>
         </div>
 
-        <!-- Categories -->
-        <div id="categoriesSection" class="hidden mb-8">
-            <div class="flex overflow-x-auto space-x-4 pb-4" id="categoriesList">
-                <!-- Categories will be loaded here -->
+        <!-- Categories (Sticky) -->
+        <div id="categoriesSection" class="hidden sticky-categories">
+            <div class="max-w-4xl mx-auto px-4">
+                <div class="flex overflow-x-auto space-x-3 pb-2" id="categoriesList">
+                    <!-- Categories will be loaded here -->
+                </div>
             </div>
         </div>
 
@@ -138,6 +209,11 @@
                         rows="3"
                         placeholder="Özel isteklerinizi buraya yazın..."
                     ></textarea>
+                </div>
+
+                <!-- Cross-sell Suggestions -->
+                <div id="crossSellSection" class="mb-6">
+                    <!-- Cross-sell suggestions will be loaded here -->
                 </div>
 
                 <!-- Add to Cart Button -->
@@ -232,6 +308,7 @@
         let products = [];
         let cart = [];
         let currentProduct = null;
+        let currentCategory = null;
 
         // Initialize the app
         document.addEventListener('DOMContentLoaded', function() {
@@ -278,14 +355,28 @@
             const categoriesList = document.getElementById('categoriesList');
             categoriesList.innerHTML = '';
             
+            // Add "All" category first
+            const allCategoryElement = document.createElement('button');
+            allCategoryElement.className = 'category-btn flex-shrink-0 rounded-lg px-4 py-3 text-center transition-all';
+            if (currentCategory === null) {
+                allCategoryElement.classList.add('active');
+            }
+            allCategoryElement.innerHTML = `
+                <div class="text-2xl mb-1">🍽️</div>
+                <div class="text-sm font-medium">Tümü</div>
+            `;
+            allCategoryElement.onclick = () => filterByCategory(null);
+            categoriesList.appendChild(allCategoryElement);
+            
             categories.forEach(category => {
                 const categoryElement = document.createElement('button');
-                categoryElement.className = 'flex-shrink-0 bg-white border border-gray-200 rounded-lg px-4 py-2 hover:bg-gray-50 transition-colors';
+                categoryElement.className = 'category-btn flex-shrink-0 rounded-lg px-4 py-3 text-center transition-all';
+                if (currentCategory === category.id) {
+                    categoryElement.classList.add('active');
+                }
                 categoryElement.innerHTML = `
-                    <div class="text-center">
-                        <div class="text-2xl mb-1">${category.icon || '🍽️'}</div>
-                        <div class="text-sm font-medium text-gray-700">${category.name}</div>
-                    </div>
+                    <div class="text-2xl mb-1">${category.icon || '🍽️'}</div>
+                    <div class="text-sm font-medium">${category.name}</div>
                 `;
                 categoryElement.onclick = () => filterByCategory(category.id);
                 categoriesList.appendChild(categoryElement);
@@ -294,6 +385,36 @@
             document.getElementById('categoriesSection').classList.remove('hidden');
         }
 
+        function getFoodImage(categoryName, productName) {
+            // Generate appropriate food image based on category and product name
+            const categoryImages = {
+                'Ana Yemek': ['grilled meat steak with vegetables', 'roasted chicken with herbs', 'beef burger with fries', 'pasta with tomato sauce', 'grilled fish with lemon'],
+                'İçecek': ['fresh orange juice in glass', 'iced coffee with cream', 'fruit smoothie in tall glass', 'cold beer in frosted glass', 'fresh lemonade with mint'],
+                'Tatlı': ['chocolate cake with frosting', 'ice cream sundae with toppings', 'fruit tart with berries', 'cheesecake with strawberry', 'baklava with honey'],
+                'Salata': ['fresh green salad with tomatoes', 'caesar salad with croutons', 'greek salad with feta cheese', 'fruit salad colorful', 'chicken salad with vegetables'],
+                'Çorba': ['hot tomato soup in bowl', 'creamy mushroom soup', 'chicken noodle soup', 'vegetable soup hot', 'lentil soup with herbs'],
+                'Kahvaltı': ['turkish breakfast spread', 'fresh croissants with jam', 'omelette with cheese', 'pancakes with syrup', 'fresh bread with butter'],
+                'Fast Food': ['crispy french fries', 'cheese pizza slice', 'hot dog with toppings', 'chicken nuggets', 'onion rings crispy'],
+                'Pizza': ['margherita pizza fresh', 'pepperoni pizza slice', 'vegetarian pizza colorful', 'cheese pizza melted', 'bbq chicken pizza']
+            };
+            
+            // Default images for unknown categories
+            const defaultImages = ['delicious food plate', 'appetizing meal presentation', 'gourmet dish professional', 'tasty food photography', 'restaurant quality meal'];
+            
+            let searchTerms;
+            if (categoryName && categoryImages[categoryName]) {
+                searchTerms = categoryImages[categoryName];
+            } else {
+                searchTerms = defaultImages;
+            }
+            
+            // Select a random term from the appropriate category
+            const randomTerm = searchTerms[Math.floor(Math.random() * searchTerms.length)];
+            
+            // Generate image URL using the food photography API
+            return `https://trae-api-sg.mchost.guru/api/ide/v1/text_to_image?prompt=${encodeURIComponent(randomTerm + ', professional food photography, high quality, appetizing, restaurant style')}&image_size=landscape_4_3`;
+        }
+        
         function renderProducts(categoryId = null) {
             const productsGrid = document.getElementById('productsGrid');
             productsGrid.innerHTML = '';
@@ -315,23 +436,36 @@
             filteredProducts.forEach(product => {
                 const productElement = document.createElement('div');
                 productElement.className = 'product-card bg-white rounded-lg shadow-md overflow-hidden cursor-pointer';
+                
+                // Get high-quality food image based on category
+                const categoryName = categories.find(c => c.id === product.category_id)?.name || '';
+                const foodImageUrl = getFoodImage(categoryName, product.name);
+                
                 productElement.innerHTML = `
-                    <img 
-                        src="${product.image_url || 'https://via.placeholder.com/300x200?text=Ürün+Görseli'}" 
-                        alt="${product.name}" 
-                        class="w-full h-48 object-cover"
-                        onerror="this.src='https://via.placeholder.com/300x200?text=Ürün+Görseli'"
-                    >
+                    <div class="relative overflow-hidden">
+                        <img 
+                            src="${foodImageUrl}" 
+                            alt="${product.name}" 
+                            class="w-full h-48 object-cover transition-transform duration-300 hover:scale-110"
+                            onerror="this.src='https://trae-api-sg.mchost.guru/api/ide/v1/text_to_image?prompt=${encodeURIComponent('appetizing food, professional photography, high quality')}&image_size=landscape_4_3'"
+                        >
+                        <div class="absolute top-2 right-2 bg-white bg-opacity-90 rounded-full px-2 py-1">
+                            <span class="text-green-600 font-bold text-sm">${product.price.toFixed(2)} TL</span>
+                        </div>
+                    </div>
                     <div class="p-4">
                         <div class="flex justify-between items-start mb-2">
-                            <h3 class="font-semibold text-gray-800">${product.name}</h3>
-                            <span class="text-green-600 font-bold">${product.price.toFixed(2)} TL</span>
+                            <h3 class="font-semibold text-gray-800 text-lg">${product.name}</h3>
+                            <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                                ${categoryName}
+                            </span>
                         </div>
                         <p class="text-gray-600 text-sm mb-3">${product.description || ''}</p>
                         <button 
                             onclick="showProductDetail(${product.id})" 
-                            class="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                            class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-300 font-medium"
                         >
+                            <i class="fas fa-eye mr-2"></i>
                             Detaylı Gör
                         </button>
                     </div>
@@ -346,13 +480,21 @@
                 currentProduct = await response.json();
                 
                 document.getElementById('modalProductName').textContent = currentProduct.name;
-                document.getElementById('modalProductImage').src = currentProduct.image_url || 'https://via.placeholder.com/300x200?text=Ürün+Görseli';
+                
+                // Get high-quality food image for modal
+                const categoryName = categories.find(c => c.id === currentProduct.category_id)?.name || '';
+                const foodImageUrl = getFoodImage(categoryName, currentProduct.name);
+                
+                document.getElementById('modalProductImage').src = foodImageUrl;
                 document.getElementById('modalProductDescription').textContent = currentProduct.description || '';
                 document.getElementById('modalProductPrice').textContent = `${currentProduct.price.toFixed(2)} TL`;
                 document.getElementById('modalProductCategory').textContent = currentProduct.category.name;
                 
                 // Render extras
                 renderProductExtras(currentProduct.extra_groups);
+                
+                // Render cross-sell suggestions
+                renderCrossSellSuggestions(currentProduct);
                 
                 // Reset special instructions
                 document.getElementById('modalSpecialInstructions').value = '';
@@ -420,6 +562,114 @@
                 extrasSection.appendChild(groupElement);
             });
         }
+        
+        function renderCrossSellSuggestions(currentProduct) {
+            const crossSellSection = document.getElementById('crossSellSection');
+            crossSellSection.innerHTML = '';
+            
+            // Smart cross-sell logic based on product category
+            let suggestions = [];
+            const currentCategory = categories.find(c => c.id === currentProduct.category_id)?.name || '';
+            
+            // Define cross-sell rules
+            const crossSellRules = {
+                'Ana Yemek': ['İçecek', 'Tatlı', 'Salata'],
+                'Pizza': ['İçecek', 'Tatlı'],
+                'Fast Food': ['İçecek', 'Tatlı'],
+                'Çorba': ['Ana Yemek', 'İçecek'],
+                'Salata': ['İçecek', 'Ana Yemek'],
+                'Kahvaltı': ['İçecek', 'Tatlı'],
+                'Tatlı': ['İçecek', 'Kahvaltı'],
+                'İçecek': ['Tatlı', 'Ana Yemek']
+            };
+            
+            const suggestedCategories = crossSellRules[currentCategory] || ['İçecek', 'Tatlı'];
+            
+            // Find products from suggested categories (excluding current category)
+            suggestedCategories.forEach(categoryName => {
+                const category = categories.find(c => c.name === categoryName);
+                if (category) {
+                    const categoryProducts = products.filter(p => 
+                        p.category_id === category.id && p.id !== currentProduct.id
+                    );
+                    
+                    // Take up to 2 products from each suggested category
+                    const selectedProducts = categoryProducts.slice(0, 2);
+                    suggestions = suggestions.concat(selectedProducts);
+                }
+            });
+            
+            if (suggestions.length === 0) return;
+            
+            // Create cross-sell section
+            const sectionTitle = document.createElement('h4');
+            sectionTitle.className = 'font-medium text-gray-700 mb-3';
+            sectionTitle.innerHTML = '🎯 <span class="ml-1">Bu ürünle iyi gider</span>';
+            crossSellSection.appendChild(sectionTitle);
+            
+            const suggestionsContainer = document.createElement('div');
+            suggestionsContainer.className = 'grid grid-cols-2 gap-3';
+            
+            suggestions.slice(0, 4).forEach(product => {
+                const suggestionElement = document.createElement('div');
+                suggestionElement.className = 'bg-gray-50 border border-gray-200 rounded-lg p-3 cursor-pointer hover:bg-gray-100 hover:border-blue-300 transition-all';
+                
+                const categoryName = categories.find(c => c.id === product.category_id)?.name || '';
+                const foodImageUrl = getFoodImage(categoryName, product.name);
+                
+                suggestionElement.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <img 
+                            src="${foodImageUrl}" 
+                            alt="${product.name}" 
+                            class="w-12 h-12 object-cover rounded-lg"
+                            onerror="this.src='https://trae-api-sg.mchost.guru/api/ide/v1/text_to_image?prompt=${encodeURIComponent('appetizing food, small portion')}&image_size=square'"
+                        >
+                        <div class="flex-1 min-w-0">
+                            <h5 class="font-medium text-gray-800 text-sm truncate">${product.name}</h5>
+                            <p class="text-xs text-gray-600">${categoryName}</p>
+                            <p class="text-sm font-semibold text-green-600">${product.price.toFixed(2)} TL</p>
+                        </div>
+                        <button 
+                            onclick="quickAddToCart(${product.id})" 
+                            class="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-blue-600 transition-colors"
+                            title="Hemen Ekle"
+                        >
+                            <i class="fas fa-plus text-xs"></i>
+                        </button>
+                    </div>
+                `;
+                
+                suggestionsContainer.appendChild(suggestionElement);
+            });
+            
+            crossSellSection.appendChild(suggestionsContainer);
+        }
+        
+        function quickAddToCart(productId) {
+            // Quick add to cart without opening modal
+            const product = products.find(p => p.id === productId);
+            if (!product) return;
+            
+            const cartItem = {
+                id: Date.now(),
+                product: product,
+                quantity: 1,
+                extras: {},
+                specialInstructions: ''
+            };
+            
+            cart.push(cartItem);
+            updateCartSummary();
+            
+            // Show quick add animation
+            showToast('✅ Ürün sepete eklendi!');
+            
+            // Bounce cart icon
+            const cartSummary = document.getElementById('cartSummary');
+            cartSummary.classList.add('cart-icon-bounce');
+            setTimeout(() => cartSummary.classList.remove('cart-icon-bounce'), 500);
+        }
 
         function closeProductModal() {
             document.getElementById('productModal').classList.remove('active');
@@ -469,10 +719,61 @@
             
             cart.push(cartItem);
             updateCartSummary();
+            
+            // Trigger add to cart animation
+            animateAddToCart();
+            
             closeProductModal();
             
             // Show success message
             showToast('Ürün sepete eklendi!');
+        }
+        
+        function animateAddToCart() {
+            // Create flying animation element
+            const flyingElement = document.createElement('div');
+            flyingElement.className = 'fixed z-50 pointer-events-none';
+            flyingElement.innerHTML = `
+                <div class="bg-blue-500 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg">
+                    <i class="fas fa-cart-plus"></i>
+                </div>
+            `;
+            
+            // Position at modal center
+            const modal = document.getElementById('productModal');
+            const modalRect = modal.getBoundingClientRect();
+            flyingElement.style.left = (modalRect.left + modalRect.width / 2 - 24) + 'px';
+            flyingElement.style.top = (modalRect.top + modalRect.height / 2 - 24) + 'px';
+            
+            document.body.appendChild(flyingElement);
+            
+            // Get cart summary position
+            const cartSummary = document.getElementById('cartSummary');
+            const cartRect = cartSummary.getBoundingClientRect();
+            
+            // Animate to cart
+            flyingElement.animate([
+                {
+                    transform: 'scale(1) translate(0, 0)',
+                    opacity: 1
+                },
+                {
+                    transform: `scale(0.8) translate(${cartRect.left - modalRect.left + cartRect.width / 2 - 24}px, ${cartRect.top - modalRect.top + cartRect.height / 2 - 24}px)`,
+                    opacity: 0.8
+                },
+                {
+                    transform: `scale(0.5) translate(${cartRect.left - modalRect.left + cartRect.width / 2 - 12}px, ${cartRect.top - modalRect.top + cartRect.height / 2 - 12}px)`,
+                    opacity: 0
+                }
+            ], {
+                duration: 800,
+                easing: 'ease-out'
+            }).onfinish = () => {
+                flyingElement.remove();
+                // Bounce cart icon
+                cartSummary.classList.add('cart-icon-bounce');
+                setTimeout(() => cartSummary.classList.remove('cart-icon-bounce'), 500);
+            };
         }
 
         function updateCartSummary() {
@@ -681,7 +982,15 @@
         }
 
         function filterByCategory(categoryId) {
+            currentCategory = categoryId;
+            renderCategories(); // Re-render to update active state
             renderProducts(categoryId);
+            
+            // Smooth scroll to products section
+            document.getElementById('productsSection').scrollIntoView({ 
+                behavior: 'smooth',
+                block: 'start'
+            });
         }
 
         // WebSocket connection for real-time order updates

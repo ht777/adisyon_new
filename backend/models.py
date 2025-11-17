@@ -54,6 +54,7 @@ class Product(Base):
     category_id = Column(Integer, ForeignKey("categories.id"))
     is_featured = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
+    in_stock = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships

@@ -57,6 +57,51 @@
             border-color: #3b82f6;
             background: #eff6ff;
         }
+        
+        .draggable-item {
+            cursor: grab;
+            transition: all 0.2s ease;
+        }
+        
+        .draggable-item:hover {
+            background: #f9fafb;
+            transform: translateY(-1px);
+        }
+        
+        .draggable-item:active {
+            cursor: grabbing;
+        }
+        
+        .draggable-item.dragging {
+            opacity: 0.5;
+            transform: rotate(2deg);
+        }
+        
+        .drag-over {
+            border-top: 3px solid #3b82f6;
+            background: #eff6ff;
+        }
+        
+        .reorder-handle {
+            color: #9ca3af;
+            cursor: grab;
+            padding: 4px;
+            border-radius: 4px;
+        }
+        
+        .reorder-handle:hover {
+            color: #6b7280;
+            background: #f3f4f6;
+        }
+        
+        /* Toggle Switch Styles */
+        .toggle-switch input:checked + .relative .block {
+            background-color: #10b981;
+        }
+        
+        .toggle-switch input:checked + .relative .dot {
+            transform: translateX(100%);
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -236,6 +281,7 @@
                     <table class="min-w-full">
                         <thead class="bg-gray-50">
                             <tr>
+                                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sırala</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">İkon</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kategori</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sıra</th>
@@ -711,6 +757,23 @@
                         </span>
                     </td>
                     <td class="px-6 py-4">
+                        <div class="flex items-center space-x-2">
+                            <label class="toggle-switch flex items-center cursor-pointer">
+                                <input type="checkbox" 
+                                       ${product.in_stock ? 'checked' : ''} 
+                                       onchange="toggleProductStock(${product.id}, this.checked)"
+                                       class="sr-only">
+                                <div class="relative">
+                                    <div class="block bg-gray-200 w-14 h-8 rounded-full"></div>
+                                    <div class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"></div>
+                                </div>
+                                <div class="ml-3 text-gray-700 font-medium text-sm">
+                                    ${product.in_stock ? 'Stokta' : 'Stokta Yok'}
+                                </div>
+                            </label>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
                         <button onclick="editProduct(${product.id})" class="text-blue-600 hover:text-blue-900 mr-3">
                             <i class="fas fa-edit"></i>
                         </button>
@@ -819,24 +882,164 @@
             const tbody = document.getElementById('categoriesTableBody');
             tbody.innerHTML = '';
             
-            categories.forEach(category => {
+            categories.forEach((category, index) => {
                 const row = document.createElement('tr');
+                row.className = 'draggable-item';
+                row.draggable = true;
+                row.dataset.categoryId = category.id;
+                row.dataset.currentOrder = category.order;
+                
                 row.innerHTML = `
+                    <td class="px-3 py-4">
+                        <div class="reorder-handle" title="Sürükle bırak ile sırala">
+                            <i class="fas fa-grip-vertical"></i>
+                        </div>
+                    </td>
                     <td class="px-6 py-4">
                         <div class="text-2xl">${category.icon || '🍽️'}</div>
                     </td>
-                    <td class="px-6 py-4 text-sm text-gray-900">${category.name}</td>
-                    <td class="px-6 py-4 text-sm text-gray-900">${category.order}</td>
+                    <td class="px-6 py-4 text-sm text-gray-900 font-medium">${category.name}</td>
+                    <td class="px-6 py-4 text-sm text-gray-900">
+                        <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                            Sıra ${category.order}
+                        </span>
+                    </td>
                     <td class="px-6 py-4">
-                        <button onclick="editCategory(${category.id})" class="text-blue-600 hover:text-blue-900 mr-3">
+                        <button onclick="editCategory(${category.id})" class="text-blue-600 hover:text-blue-900 mr-3" title="Düzenle">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button onclick="deleteCategory(${category.id})" class="text-red-600 hover:text-red-900">
+                        <button onclick="deleteCategory(${category.id})" class="text-red-600 hover:text-red-900" title="Sil">
                             <i class="fas fa-trash"></i>
                         </button>
                     </td>
                 `;
+                
+                // Add drag and drop event listeners
+                row.addEventListener('dragstart', handleDragStart);
+                row.addEventListener('dragover', handleDragOver);
+                row.addEventListener('drop', handleDrop);
+                row.addEventListener('dragend', handleDragEnd);
+                
                 tbody.appendChild(row);
+            });
+        }
+
+        // Drag and Drop Functions for Category Reordering
+        let draggedElement = null;
+        let draggedCategoryId = null;
+
+        function handleDragStart(e) {
+            draggedElement = this;
+            draggedCategoryId = this.dataset.categoryId;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            
+            const afterElement = getDragAfterElement(e.currentTarget.parentElement, e.clientY);
+            const dragging = document.querySelector('.dragging');
+            
+            if (afterElement == null) {
+                e.currentTarget.parentElement.appendChild(dragging);
+            } else {
+                e.currentTarget.parentElement.insertBefore(dragging, afterElement);
+            }
+            
+            return false;
+        }
+
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            return false;
+        }
+
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            
+            // Get all category rows and their new order
+            const rows = Array.from(document.querySelectorAll('#categoriesTableBody tr'));
+            const newOrder = rows.map((row, index) => ({
+                id: row.dataset.categoryId,
+                order: index + 1
+            }));
+            
+            // Save the new order to the server
+            saveCategoryOrder(newOrder);
+            
+            return false;
+        }
+
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.draggable-item:not(.dragging)')];
+            
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        function saveCategoryOrder(newOrder) {
+            fetch('/api/products/categories/reorder', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ order: newOrder })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Kategori sıralaması güncellendi!', 'success');
+                    loadCategories(); // Reload to reflect the new order
+                } else {
+                    showToast('Sıralama güncellenirken hata oluştu.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving category order:', error);
+                showToast('Sıralama kaydedilirken hata oluştu.', 'error');
+            });
+        }
+
+        function toggleProductStock(productId, inStock) {
+            fetch(`/api/products/${productId}/stock`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ in_stock: inStock })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(`Ürün stoğu ${inStock ? 'güncellendi' : 'güncellendi'}!`, 'success');
+                } else {
+                    showToast('Stok güncellenirken hata oluştu.', 'error');
+                    // Revert the toggle
+                    loadProducts();
+                }
+            })
+            .catch(error => {
+                console.error('Error updating product stock:', error);
+                showToast('Stok güncellenirken hata oluştu.', 'error');
+                // Revert the toggle
+                loadProducts();
             });
         }
 

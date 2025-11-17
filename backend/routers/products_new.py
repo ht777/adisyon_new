@@ -65,6 +65,7 @@ class ProductResponse(BaseModel):
     category: Dict[str, Any]
     is_featured: bool
     is_active: bool
+    in_stock: bool
     created_at: datetime
     
     class Config:
@@ -156,6 +157,34 @@ async def delete_category(
     db.commit()
     
     return {"message": "Category deleted successfully"}
+
+# Reorder categories endpoint
+@router.post("/categories/reorder")
+async def reorder_categories(
+    order_request: Dict[str, List[Dict[str, int]]],
+    current_user = Depends(require_role([UserRole.ADMIN])),
+    db: Session = Depends(get_session)
+):
+    """Reorder categories based on the provided order list"""
+    try:
+        order_data = order_request.get('order', [])
+        
+        # Update each category's order
+        for item in order_data:
+            category_id = item.get('id')
+            new_order = item.get('order')
+            
+            if category_id and new_order is not None:
+                category = db.query(Category).filter(Category.id == category_id).first()
+                if category:
+                    category.order = new_order
+        
+        db.commit()
+        return {"success": True, "message": "Categories reordered successfully"}
+    
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error reordering categories: {str(e)}")
 
 # Extra Groups endpoints
 @router.post("/extra-groups", response_model=ExtraGroupResponse)
@@ -439,3 +468,22 @@ async def upload_product_image(
     db.commit()
     
     return {"image_url": image_url}
+
+# Stock management endpoint
+@router.put("/products/{product_id}/stock")
+async def update_product_stock(
+    product_id: int,
+    stock_data: Dict[str, bool],
+    current_user = Depends(require_role([UserRole.ADMIN])),
+    db: Session = Depends(get_session)
+):
+    """Update product stock status"""
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    in_stock = stock_data.get('in_stock', True)
+    product.in_stock = in_stock
+    db.commit()
+    
+    return {"success": True, "message": "Product stock updated successfully"}
