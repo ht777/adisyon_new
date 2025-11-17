@@ -1,3 +1,4 @@
+import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from models import create_tables
@@ -38,12 +39,12 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Restaurant Order System...")
     create_tables()
     logger.info("Database tables created/verified")
-    
+
     # Static files temporarily disabled
     logger.info("Static files temporarily disabled for Docker deployment")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down Restaurant Order System...")
 
@@ -82,23 +83,23 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket, client_type: str = "customer"):
         await websocket.accept()
         self.active_connections.append(websocket)
-        
+
         if client_type == "kitchen":
             self.kitchen_connections.append(websocket)
         elif client_type == "admin":
             self.admin_connections.append(websocket)
-        
+
         logger.info(f"WebSocket connected: {client_type} (Total: {len(self.active_connections)})")
 
     def disconnect(self, websocket: WebSocket, client_type: str = "customer"):
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
-        
+
         if client_type == "kitchen" and websocket in self.kitchen_connections:
             self.kitchen_connections.remove(websocket)
         elif client_type == "admin" and websocket in self.admin_connections:
             self.admin_connections.remove(websocket)
-        
+
         logger.info(f"WebSocket disconnected: {client_type} (Total: {len(self.active_connections)})")
 
     async def broadcast_to_all(self, message: dict):
@@ -110,7 +111,7 @@ class ConnectionManager:
                 *[self.send_message(connection, message_json) for connection in self.active_connections],
                 return_exceptions=True
             )
-            
+
             # Başarılı/başarısız istatistikleri
             success_count = sum(1 for r in results if r is None)
             logger.info(f"Broadcast to all: {success_count}/{len(self.active_connections)} successful")
@@ -123,7 +124,7 @@ class ConnectionManager:
                 *[self.send_message(connection, message_json) for connection in self.kitchen_connections],
                 return_exceptions=True
             )
-            
+
             success_count = sum(1 for r in results if r is None)
             logger.info(f"Broadcast to kitchen: {success_count}/{len(self.kitchen_connections)} successful")
 
@@ -135,7 +136,7 @@ class ConnectionManager:
                 *[self.send_message(connection, message_json) for connection in self.admin_connections],
                 return_exceptions=True
             )
-            
+
             success_count = sum(1 for r in results if r is None)
             logger.info(f"Broadcast to admin: {success_count}/{len(self.admin_connections)} successful")
 
@@ -146,13 +147,14 @@ class ConnectionManager:
             return None
         except Exception as e:
             # Bağlantı kapalıysa, listeden kaldır
+            # Check and remove from all connection lists, but avoid duplicate operations
             if websocket in self.active_connections:
                 self.active_connections.remove(websocket)
             if websocket in self.kitchen_connections:
                 self.kitchen_connections.remove(websocket)
             if websocket in self.admin_connections:
                 self.admin_connections.remove(websocket)
-            
+
             logger.warning(f"Failed to send message: {e}")
             return e
 
@@ -165,32 +167,52 @@ set_connection_manager(manager)
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for real-time communication"""
     client_type = "customer"  # Default client type
-    
+
     try:
-        # İlk mesajda client tipini al
-        await manager.connect(websocket, client_type)
-        
+        # Wait for the initial registration message to determine client type
+        # Instead of immediately connecting as 'customer', wait for registration
+        initial_data = await websocket.receive_text()
+        try:
+            initial_message = json.loads(initial_data)
+
+            # If the first message is a registration, use the specified client type
+            if initial_message.get("type") == "register":
+                client_type = initial_message.get("client_type", "customer")
+                # Connect with the specified client type immediately
+                await manager.connect(websocket, client_type)
+                logger.info(f"WebSocket registered as: {client_type}")
+            else:
+                # If first message isn't registration, connect as default and process the message later
+                await manager.connect(websocket, client_type)
+                # Process the initial message as normal
+                if initial_message.get("type") == "ping":
+                    await websocket.send_text(json.dumps({"type": "pong"}))
+        except json.JSONDecodeError:
+            # If initial message isn't valid JSON, connect as default
+            await manager.connect(websocket, client_type)
+            await websocket.send_text(json.dumps({"error": "Invalid JSON format"}))
+
         while True:
             # Client'tan gelen mesajları dinle
             data = await websocket.receive_text()
             try:
                 message = json.loads(data)
-                
-                # Client tipini güncelle
+
+                # Client tipini güncelle (only if it's a register message)
                 if message.get("type") == "register":
                     old_type = client_type
                     client_type = message.get("client_type", "customer")
                     manager.disconnect(websocket, old_type)  # Eski tipi kaldır
                     await manager.connect(websocket, client_type)
                     logger.info(f"Client type changed: {old_type} -> {client_type}")
-                    
+
                 # Diğer mesaj türlerini işle
                 elif message.get("type") == "ping":
                     await websocket.send_text(json.dumps({"type": "pong"}))
-                    
+
             except json.JSONDecodeError:
                 await websocket.send_text(json.dumps({"error": "Invalid JSON format"}))
-                
+
     except WebSocketDisconnect:
         manager.disconnect(websocket, client_type)
         logger.info(f"WebSocket disconnected: {client_type}")
@@ -235,12 +257,10 @@ async def system_info():
     }
 
 if __name__ == "__main__":
-    import uvicorn
-    
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8000"))
     reload = DEBUG and ENVIRONMENT == "development"
-    
+
     logger.info(f"Starting server on {host}:{port} (reload={reload})")
     uvicorn.run(
         "main:app",
