@@ -5,8 +5,8 @@ from models import Order, OrderItem, OrderStatus, Table, Product, get_session
 from auth import require_role, get_current_active_user
 from models import UserRole
 from datetime import datetime
-from websocket_utils import broadcast_order_update # Gerekli import
-from pydantic import BaseModel # Gerekli import
+from websocket_utils import broadcast_order_update
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
@@ -17,7 +17,8 @@ class OrderItemCreate(BaseModel):
     extras: Dict[str, Any] = {}
 
 class OrderCreate(BaseModel):
-    table_id: int
+    # FIX: table_id yerine table_number kullanıldı
+    table_number: int 
     items: List[OrderItemCreate]
     customer_notes: Optional[str] = None
 
@@ -62,8 +63,9 @@ async def get_pending_orders_for_kitchen(db: Session = Depends(get_session)):
                 "id": item.id, "product_id": item.product_id, "product_name": p_name,
                 "quantity": item.quantity, "extras": item.extras, "subtotal": item.subtotal
             })
+        table_name = order.table.name if order.table else "Masa Bilinmiyor"
         result.append({
-            "id": order.id, "table_name": order.table.name, "status": order.status,
+            "id": order.id, "table_name": table_name, "status": order.status,
             "customer_notes": order.customer_notes, "created_at": order.created_at.isoformat(),
             "items": items, "total_amount": order.total_amount
         })
@@ -75,10 +77,11 @@ async def get_order_stats(db: Session = Depends(get_session)):
 
 @router.post("", response_model=OrderResponse)
 async def create_order(order: OrderCreate, db: Session = Depends(get_session)):
-    table = db.query(Table).filter(Table.id == order.table_id).first()
-    if not table: raise HTTPException(status_code=404, detail="Table not found")
+    # FIX: Masayı table_number ile bul
+    table = db.query(Table).filter(Table.number == order.table_number).first()
+    if not table: raise HTTPException(status_code=404, detail=f"Table with number {order.table_number} not found")
     
-    new_order = Order(table_id=order.table_id, customer_notes=order.customer_notes, status=OrderStatus.BEKLIYOR)
+    new_order = Order(table_id=table.id, customer_notes=order.customer_notes, status=OrderStatus.BEKLIYOR)
     db.add(new_order)
     db.commit()
     db.refresh(new_order)
@@ -103,7 +106,6 @@ async def create_order(order: OrderCreate, db: Session = Depends(get_session)):
     new_order.total_amount = total_amount
     db.commit()
     
-    # DÜZELTME: AWAIT EKLENDİ
     await broadcast_order_update({
         "id": new_order.id, "table_id": new_order.table_id, "table_name": table.name, "status": new_order.status,
         "customer_notes": new_order.customer_notes, "total_amount": new_order.total_amount,
@@ -132,7 +134,8 @@ async def get_orders(skip: int = Query(0, ge=0), limit: int = Query(100, ge=1, l
             p_desc = item.product.description if item.product else ""
             p_img = item.product.image_url if item.product else ""
             items.append({"id": item.id, "product_id": item.product_id, "quantity": item.quantity, "unit_price": item.unit_price, "extras": item.extras, "subtotal": item.subtotal, "product": {"id": item.product_id, "name": p_name, "description": p_desc, "price": item.unit_price, "image_url": p_img}})
-        result.append({"id": order.id, "table_id": order.table_id, "table_name": order.table.name, "status": order.status, "customer_notes": order.customer_notes, "total_amount": order.total_amount, "created_at": order.created_at, "updated_at": order.updated_at, "items": items})
+        table_name = order.table.name if order.table else "Masa Bilinmiyor"
+        result.append({"id": order.id, "table_id": order.table_id, "table_name": table_name, "status": order.status, "customer_notes": order.customer_notes, "total_amount": order.total_amount, "created_at": order.created_at, "updated_at": order.updated_at, "items": items})
     return result
 
 @router.get("/{order_id}", response_model=OrderResponse)
@@ -143,7 +146,8 @@ async def get_order(order_id: int, db: Session = Depends(get_session)):
     for item in order.items:
         p_name = item.product.name if item.product else "Bilinmeyen"
         items.append({"id": item.id, "product_id": item.product_id, "quantity": item.quantity, "unit_price": item.unit_price, "extras": item.extras, "subtotal": item.subtotal, "product": {"id": item.product_id, "name": p_name, "description": "", "price": item.unit_price, "image_url": ""}})
-    return {"id": order.id, "table_id": order.table_id, "table_name": order.table.name, "status": order.status, "customer_notes": order.customer_notes, "total_amount": order.total_amount, "created_at": order.created_at, "updated_at": order.updated_at, "items": items}
+    table_name = order.table.name if order.table else "Masa Bilinmiyor"
+    return {"id": order.id, "table_id": order.table_id, "table_name": table_name, "status": order.status, "customer_notes": order.customer_notes, "total_amount": order.total_amount, "created_at": order.created_at, "updated_at": order.updated_at, "items": items}
 
 @router.put("/{order_id}/status", response_model=OrderResponse)
 async def update_order_status(
@@ -171,11 +175,11 @@ async def update_order_status(
     order.status = new_status_enum
     db.commit()
     
-    # DÜZELTME: AWAIT EKLENDİ
-    await broadcast_order_update({"id": order.id, "status": order.status, "table_name": order.table.name}, "order_updated")
+    table_name = order.table.name if order.table else "Masa Bilinmiyor"
+    await broadcast_order_update({"id": order.id, "status": order.status, "table_name": table_name}, "order_updated")
     
     return {
-        "id": order.id, "table_id": order.table_id, "table_name": order.table.name,
+        "id": order.id, "table_id": order.table_id, "table_name": table_name,
         "status": order.status, "customer_notes": order.customer_notes,
         "total_amount": order.total_amount, "created_at": order.created_at,
         "updated_at": order.updated_at, "items": []

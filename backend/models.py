@@ -6,7 +6,7 @@ import enum
 
 Base = declarative_base()
 
-# DURUM KODLARI GÜNCELLENDİ (Türkçe karakter sorunu bitti)
+# --- ENUM SINIFLARI ---
 class UserRole(str, enum.Enum):
     ADMIN = "admin"
     KITCHEN = "kitchen"
@@ -14,11 +14,14 @@ class UserRole(str, enum.Enum):
     SUPERVISOR = "supervisor"
 
 class OrderStatus(str, enum.Enum):
-    BEKLIYOR = "pending"       # Eski: bekliyor
-    HAZIRLANIYOR = "preparing" # Eski: hazırlanıyor (sorunlu)
-    HAZIR = "ready"            # Eski: hazır
+    BEKLIYOR = "pending"
+    HAZIRLANIYOR = "preparing"
+    HAZIR = "ready"
     TESLIM_EDILDI = "delivered"
     IPTAL = "cancelled"
+
+# --- TABLO MODELLERİ ---
+# DİKKAT: datetime.utcnow YERİNE datetime.now KULLANILDI
 
 class User(Base):
     __tablename__ = "users"
@@ -28,7 +31,7 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     role = Column(Enum(UserRole), default=UserRole.WAITER)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now) # Değişti
 
 class Category(Base):
     __tablename__ = "categories"
@@ -37,7 +40,7 @@ class Category(Base):
     icon = Column(String, nullable=True)
     order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now) # Değişti
     products = relationship("Product", back_populates="category")
 
 class Product(Base):
@@ -50,7 +53,7 @@ class Product(Base):
     category_id = Column(Integer, ForeignKey("categories.id"))
     is_featured = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now) # Değişti
     category = relationship("Category", back_populates="products")
     extra_groups = relationship("ProductExtraGroup", back_populates="product")
 
@@ -60,7 +63,7 @@ class ExtraGroup(Base):
     name = Column(String, nullable=False)
     is_required = Column(Boolean, default=False)
     max_selections = Column(Integer, default=1)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now) # Değişti
     items = relationship("ExtraItem", back_populates="group")
     products = relationship("ProductExtraGroup", back_populates="extra_group")
 
@@ -71,7 +74,7 @@ class ExtraItem(Base):
     price = Column(Float, default=0.0)
     group_id = Column(Integer, ForeignKey("extra_groups.id"))
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now) # Değişti
     group = relationship("ExtraGroup", back_populates="items")
 
 class ProductExtraGroup(Base):
@@ -79,7 +82,7 @@ class ProductExtraGroup(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     product_id = Column(Integer, ForeignKey("products.id"))
     extra_group_id = Column(Integer, ForeignKey("extra_groups.id"))
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now) # Değişti
     product = relationship("Product", back_populates="extra_groups")
     extra_group = relationship("ExtraGroup", back_populates="products")
 
@@ -90,7 +93,7 @@ class Table(Base):
     number = Column(Integer, unique=True, nullable=False)
     qr_url = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now) # Değişti
     orders = relationship("Order", back_populates="table")
 
 class Order(Base):
@@ -100,8 +103,8 @@ class Order(Base):
     status = Column(Enum(OrderStatus), default=OrderStatus.BEKLIYOR)
     customer_notes = Column(String, nullable=True)
     total_amount = Column(Float, default=0.0)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now) # Değişti
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now) # Değişti
     table = relationship("Table", back_populates="orders")
     items = relationship("OrderItem", back_populates="order")
 
@@ -114,16 +117,19 @@ class OrderItem(Base):
     unit_price = Column(Float, nullable=False)
     extras = Column(JSON, default={})
     subtotal = Column(Float, default=0.0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now) # Değişti
     order = relationship("Order", back_populates="items")
     product = relationship("Product")
 
-class AdminSettings(Base):
-    __tablename__ = "admin_settings"
+class RestaurantConfig(Base):
+    __tablename__ = "restaurant_config"
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    username = Column(String, nullable=False)
-    password_hash = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    restaurant_name = Column(String, default="Restoran Sipariş Sistemi")
+    currency = Column(String, default="TRY")
+    tax_rate = Column(Float, default=10.0)
+    service_charge = Column(Float, default=0.0)
+    wifi_password = Column(String, nullable=True)
+    order_timeout_minutes = Column(Integer, default=30)
 
 # Database setup
 def get_engine():

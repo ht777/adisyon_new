@@ -3,12 +3,12 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depe
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from models import create_tables, User, UserRole # User ve Role eklendi
+from models import create_tables, User, UserRole, RestaurantConfig, get_session
 from pathlib import Path
 from routers import products_new as products, orders, admin, auth, tables
 from sqlalchemy.orm import Session
 from models import get_session
-from auth import get_password_hash # Şifreleme fonksiyonu eklendi
+from auth import get_password_hash
 import json
 import asyncio
 from typing import List, Dict, Any
@@ -56,26 +56,38 @@ async def lifespan(app: FastAPI):
     create_tables()
     logger.info("Database tables created/verified")
 
-    # 2. OTOMATİK ADMIN OLUŞTURMA (EKSİK OLAN KISIM BUYDU)
+    # 2. OTOMATİK BAŞLANGIÇ VERİLERİ (Settings dahil)
     db = next(get_session())
     try:
+        # A) ADMIN OLUŞTURMA
         admin_user = db.query(User).filter(User.username == "admin").first()
         if not admin_user:
             logger.info("⚠️ Admin kullanıcısı bulunamadı. Otomatik oluşturuluyor...")
             new_admin = User(
                 username="admin",
                 email="admin@restoran.com",
-                password_hash=get_password_hash("admin123"), # Şifre: admin123
+                password_hash=get_password_hash("admin123"),
                 role=UserRole.ADMIN,
                 is_active=True
             )
             db.add(new_admin)
-            db.commit()
             logger.info("✅ Varsayılan admin oluşturuldu: admin / admin123")
         else:
             logger.info("✅ Admin kullanıcısı mevcut.")
+
+        # B) RESTORAN AYARLARINI BAŞLATMA (Ayarların ilk kaydı)
+        config = db.query(RestaurantConfig).first()
+        if not config:
+            logger.info("⚠️ Restoran ayarları bulunamadı. Varsayılan ayarlar oluşturuluyor...")
+            default_config = RestaurantConfig()
+            db.add(default_config)
+            logger.info("✅ Varsayılan restoran ayarları oluşturuldu.")
+            
+        db.commit()
+        
     except Exception as e:
-        logger.error(f"Admin oluşturma hatası: {e}")
+        db.rollback()
+        logger.error(f"Başlangıç verisi oluşturma hatası: {e}")
     finally:
         db.close()
 

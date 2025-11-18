@@ -23,6 +23,8 @@
             <button onclick="showSection('products')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition flex items-center gap-3"><i class="fas fa-hamburger w-5 text-center"></i> Ürünler</button>
             <button onclick="showSection('categories')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition flex items-center gap-3"><i class="fas fa-tags w-5 text-center"></i> Kategoriler</button>
             <button onclick="showSection('tables')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition flex items-center gap-3"><i class="fas fa-chair w-5 text-center"></i> Masalar</button>
+            <button onclick="showSection('reports')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition flex items-center gap-3"><i class="fas fa-chart-line w-5 text-center"></i> Raporlar</button>
+            <button onclick="showSection('settings')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition flex items-center gap-3"><i class="fas fa-cog w-5 text-center"></i> Ayarlar</button>
         </nav>
         
         <div class="p-4 border-t border-slate-800">
@@ -68,6 +70,68 @@
                 <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100"><table class="min-w-full divide-y divide-gray-100"><thead class="bg-gray-50"><tr><th class="p-4 text-left text-xs font-bold text-gray-500 uppercase">ID</th><th class="p-4 text-left text-xs font-bold text-gray-500 uppercase">Masa</th><th class="p-4 text-left text-xs font-bold text-gray-500 uppercase">Tutar</th><th class="p-4 text-left text-xs font-bold text-gray-500 uppercase">Durum</th><th class="p-4 text-left text-xs font-bold text-gray-500 uppercase">Tarih</th><th class="p-4 text-center text-xs font-bold text-gray-500 uppercase">İşlem</th></tr></thead><tbody id="ordersTable" class="divide-y divide-gray-100"></tbody></table></div>
             </div>
 
+            <div id="reportsSection" class="section hidden">
+                <div class="bg-white p-6 rounded-xl shadow-sm mb-6">
+                    <h3 class="font-bold text-gray-800 mb-4">Tarih Aralığı Seç</h3>
+                    <div class="flex gap-4 items-end">
+                        <div><label class="text-sm text-gray-500">Başlangıç</label><input type="date" id="reportStart" class="block border p-2 rounded-lg"></div>
+                        <div><label class="text-sm text-gray-500">Bitiş</label><input type="date" id="reportEnd" class="block border p-2 rounded-lg"></div>
+                        <button onclick="loadReports()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">Raporla</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-green-500">
+                        <p class="text-gray-500 text-sm">Toplam Ciro</p>
+                        <h3 class="text-2xl font-bold text-gray-800" id="repTotalRevenue">0.00 ₺</h3>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500">
+                        <p class="text-gray-500 text-sm">Toplam Sipariş</p>
+                        <h3 class="text-2xl font-bold text-gray-800" id="repTotalOrders">0</h3>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-purple-500">
+                        <p class="text-gray-500 text-sm">Ortalama Sepet</p>
+                        <h3 class="text-2xl font-bold text-gray-800" id="repAvgOrder">0.00 ₺</h3>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm">
+                        <h4 class="font-bold text-gray-700 mb-4">En Çok Satan Ürünler</h4>
+                        <div class="overflow-auto max-h-60">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-gray-50 text-gray-500"><tr><th class="p-2">Ürün</th><th class="p-2">Adet</th><th class="p-2 text-right">Tutar</th></tr></thead>
+                                <tbody id="topProductsTable" class="divide-y"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm">
+                        <h4 class="font-bold text-gray-700 mb-4">Günlük Satış Grafiği</h4>
+                        <div class="h-60"><canvas id="reportChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="settingsSection" class="section hidden">
+                <div class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-sm">
+                    <h3 class="text-xl font-bold text-gray-800 mb-6 border-b pb-4">Sistem Ayarları</h3>
+                    <form onsubmit="saveSettings(event)" class="space-y-4">
+                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Restoran Adı</label><input type="text" id="setRestName" class="w-full border p-3 rounded-lg" required></div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Para Birimi</label><input type="text" id="setCurrency" class="w-full border p-3 rounded-lg" required></div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Vergi Oranı (%)</label><input type="number" step="0.1" id="setTax" class="w-full border p-3 rounded-lg" required></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Servis Ücreti (%)</label><input type="number" step="0.1" id="setService" class="w-full border p-3 rounded-lg"></div>
+                            <div><label class="block text-sm font-medium text-gray-700 mb-1">Masa Zaman Aşımı (Dk)</label><input type="number" id="setTimeout" class="w-full border p-3 rounded-lg"></div>
+                        </div>
+                        <div><label class="block text-sm font-medium text-gray-700 mb-1">Wi-Fi Şifresi (Müşteriler için)</label><input type="text" id="setWifi" class="w-full border p-3 rounded-lg"></div>
+                        
+                        <div class="pt-4"><button type="submit" class="w-full bg-slate-800 text-white py-3 rounded-lg font-bold hover:bg-slate-900 transition">Ayarları Kaydet</button></div>
+                    </form>
+                </div>
+            </div>
+
         </main>
     </div>
 
@@ -90,11 +154,15 @@
     <audio id="bellSound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
 
     <script>
+        // Placeholder SVG (Resim hatasını önler)
+        const placeholderSvg = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcnk9IjEwIiBmaWxsPSIjZGVlMzE3Ii8+PHBhdGggZD0iTTUwLDEwTDIwLDIwVjgwTDUwLDkwTDgwLDgwVjIwTDUwLDEwWiIgZmlsbD0iI2YxZjVmOSIgc3Ryb2tlPSIjNjQ3NDhiIiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSIxMCIgZmlsbD0iIzY0NzQ4YiIvPjwvc3ZnPg==';
+
         // --- BAŞLANGIÇ AYARLARI ---
         let authToken = localStorage.getItem('authToken');
         if(!authToken) window.location.href = '/login.html';
         const getHeaders = () => ({ 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' });
         let chartInstance = null;
+        let reportChartInstance = null;
 
         function showSection(id) {
             document.querySelectorAll('.section').forEach(el => el.classList.add('hidden'));
@@ -110,6 +178,8 @@
             if(id === 'categories') loadCategories();
             if(id === 'tables') loadTables();
             if(id === 'orders') loadOrders();
+            if(id === 'reports') loadReports();
+            if(id === 'settings') loadSettings();
         }
 
         function logout() { localStorage.removeItem('authToken'); window.location.href = '/login.html'; }
@@ -120,11 +190,13 @@
                 const res = await fetch('/api/admin/dashboard', {headers: getHeaders()});
                 const data = await res.json();
                 
+                // 1. STATİK DEĞERLERİ YÜKLE
                 document.getElementById('statProducts').innerText = data.overview.total_products;
                 document.getElementById('statRevenue').innerText = data.sales.today_revenue.toFixed(2) + ' ₺';
                 document.getElementById('statTodayOrders').innerText = data.sales.today_orders;
                 document.getElementById('statActiveOrders').innerText = data.sales.active_orders;
                 
+                // 2. GRAFİK OLUŞTURMA
                 const ctx = document.getElementById('salesChart').getContext('2d');
                 if(chartInstance) chartInstance.destroy();
                 
@@ -152,7 +224,10 @@
                         scales: { y: { beginAtZero: true, grid: { borderDash: [5, 5] } }, x: { grid: { display: false } } }
                     }
                 });
-            } catch(e) { console.error(e); }
+            } catch(e) { 
+                 console.error("Dashboard yüklenirken kritik hata:", e); 
+                 document.getElementById('dashboardSection').innerHTML = `<div class="p-6 bg-red-100 text-red-700 rounded-xl font-bold">⚠️ Dashboard verileri yüklenemedi. Verilerin doğru çekildiğinden ve Chart.js'in çalıştığından emin olun. Hata: ${e.message}</div>`;
+            }
         }
 
         // --- SİPARİŞ YÖNETİMİ ---
@@ -203,7 +278,9 @@
             const data = await res.json(); 
             document.getElementById('productsTable').innerHTML = data.map(p => `
                 <tr class="border-b hover:bg-gray-50">
-                    <td class="p-4"><img src="${p.image_url}" class="w-12 h-12 rounded-lg object-cover border border-gray-200"></td>
+                    <td class="p-4"><img src="${(p.image_url && p.image_url.length > 5) ? p.image_url : placeholderSvg}" 
+                                       class="w-12 h-12 rounded-lg object-cover border border-gray-200" 
+                                       onerror="this.onerror=null;this.src='${placeholderSvg}'"></td>
                     <td class="p-4 font-medium text-gray-800">${p.name}</td>
                     <td class="p-4 text-gray-500">${p.category?.name || '-'}</td>
                     <td class="p-4 font-bold text-green-600">${p.price} ₺</td>
@@ -234,7 +311,7 @@
                         const formD=new FormData(); formD.append('file',im); 
                         await fetch(`/api/products/${np.id}/image`, {method:'POST', headers:{'Authorization':`Bearer ${authToken}`}, body:formD});
                     } 
-                    closeProductModal(); loadProducts(); alert('Ürün başarıyla eklendi!'); 
+                    closeProductModal(); loadProducts(); alert('Ürün başarıyla eklendi! (Resim yükleme başarılıysa loglarda görünür)'); 
                 } else { alert('Ürün eklenirken hata oluştu.'); }
             } catch(e) { alert("Bağlantı hatası: " + e.message); }
         }
@@ -285,6 +362,90 @@
         }
         async function deleteTable(id) { if(confirm('Silinsin mi?')) { await fetch(`/api/tables/${id}`, {method:'DELETE', headers: getHeaders()}); loadTables(); } }
 
+        // --- RAPORLAR ---
+        async function loadReports() {
+            const start = document.getElementById('reportStart').value;
+            const end = document.getElementById('reportEnd').value;
+            
+            let url = '/api/admin/reports/sales';
+            if(start && end) url += `?start_date=${start}&end_date=${end}`;
+            
+            try {
+                const res = await fetch(url, {headers: getHeaders()});
+                const data = await res.json();
+                
+                // 1. STATİK DEĞERLERİ YÜKLE
+                document.getElementById('repTotalRevenue').innerText = data.total_revenue.toFixed(2) + ' ₺';
+                document.getElementById('repTotalOrders').innerText = data.total_orders;
+                document.getElementById('repAvgOrder').innerText = data.average_order.toFixed(2) + ' ₺';
+                
+                // 2. TABLOYU DOLDUR
+                const tbody = document.getElementById('topProductsTable');
+                tbody.innerHTML = data.top_products.map(p => `
+                    <tr><td class="p-2">${p.name}</td><td class="p-2 font-bold">${p.qty}</td><td class="p-2 text-right">${p.total.toFixed(2)} ₺</td></tr>
+                `).join('');
+                
+                // 3. GRAFİK OLUŞTURMA
+                const ctx = document.getElementById('reportChart').getContext('2d');
+                if(reportChartInstance) reportChartInstance.destroy();
+                
+                reportChartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.daily_breakdown.map(d => new Date(d.date).toLocaleDateString('tr-TR')),
+                        datasets: [{
+                            label: 'Ciro',
+                            data: data.daily_breakdown.map(d => d.revenue),
+                            backgroundColor: '#3b82f6',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+                
+            } catch(e) { 
+                 console.error("Rapor yüklenirken kritik hata:", e); 
+                 document.getElementById('reportsSection').innerHTML = `<div class="p-6 bg-red-100 text-red-700 rounded-xl font-bold">⚠️ Rapor verileri yüklenemedi. Verilerin doğru çekildiğinden ve Chart.js'in çalıştığından emin olun. Hata: ${e.message}</div>`;
+            }
+        }
+
+        // --- AYARLAR ---
+        async function loadSettings() {
+            try {
+                const res = await fetch('/api/admin/settings', {headers: getHeaders()});
+                const data = await res.json();
+                
+                document.getElementById('setRestName').value = data.restaurant_name;
+                document.getElementById('setCurrency').value = data.currency;
+                document.getElementById('setTax').value = data.tax_rate;
+                document.getElementById('setService').value = data.service_charge;
+                document.getElementById('setTimeout').value = data.order_timeout_minutes;
+                document.getElementById('setWifi').value = data.wifi_password || '';
+            } catch(e) { console.error(e); }
+        }
+
+        async function saveSettings(e) {
+            e.preventDefault();
+            const data = {
+                restaurant_name: document.getElementById('setRestName').value,
+                currency: document.getElementById('setCurrency').value,
+                tax_rate: parseFloat(document.getElementById('setTax').value),
+                service_charge: parseFloat(document.getElementById('setService').value),
+                order_timeout_minutes: parseInt(document.getElementById('setTimeout').value),
+                wifi_password: document.getElementById('setWifi').value
+            };
+            
+            try {
+                const res = await fetch('/api/admin/settings', {
+                    method: 'PUT',
+                    headers: getHeaders(),
+                    body: JSON.stringify(data)
+                });
+                if(res.ok) alert('Ayarlar kaydedildi! ✅');
+                else alert('Hata oluştu.');
+            } catch(e) { alert('Bağlantı hatası.'); }
+        }
+
         // --- WEBSOCKET & GARSON BİLDİRİMİ ---
         function connectWS() {
             const ws = new WebSocket(`ws://${location.host}/ws`);
@@ -297,7 +458,7 @@
                         if(Notification.permission === "granted") new Notification(m.message);
                         else alert(m.message);
                     }
-                    else if(m.type.includes('order')) { // Sipariş veya durum değişimi
+                    else if(m.type.includes('order')) { 
                         if(!document.getElementById('dashboardSection').classList.contains('hidden')) loadDashboard();
                         if(!document.getElementById('ordersSection').classList.contains('hidden')) loadOrders();
                     }

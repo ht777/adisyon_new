@@ -10,11 +10,10 @@
         body { 
             font-family: 'Inter', sans-serif; 
             background-color: #f8fafc; 
-            padding-bottom: 120px; /* Sepet için boşluk */
+            padding-bottom: 120px; 
             -webkit-tap-highlight-color: transparent;
         }
         
-        /* Sticky Header */
         .sticky-header {
             position: sticky; 
             top: 0; 
@@ -25,15 +24,14 @@
             padding-bottom: 5px;
         }
         
-        /* Category Scroll */
         .category-scroll {
             display: flex; 
             overflow-x: auto; 
             padding: 10px 15px; 
             gap: 12px;
-            scrollbar-width: none; /* Firefox */
+            scrollbar-width: none; 
         }
-        .category-scroll::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+        .category-scroll::-webkit-scrollbar { display: none; } 
         
         .cat-pill {
             white-space: nowrap; 
@@ -59,7 +57,6 @@
             transform: translateY(-1px);
         }
 
-        /* Product Card */
         .product-card {
             background: white; 
             border-radius: 24px; 
@@ -105,7 +102,6 @@
             transform: scale(0.9); 
         }
 
-        /* Floating Cart Button */
         .floating-cart {
             position: fixed; 
             bottom: 30px; 
@@ -130,7 +126,6 @@
         @keyframes slideUp { from { transform: translate(-50%, 150%); } to { transform: translate(-50%, 0); } }
         .hidden { display: none !important; }
 
-        /* Modal */
         .modal-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200;
             display: flex; align-items: flex-end; opacity: 0; pointer-events: none; transition: opacity 0.3s;
@@ -146,11 +141,28 @@
         }
         .modal-overlay.active .modal-content { transform: translateY(0); }
 
-        /* Loading State */
         .state-container { 
             text-align: center; 
             padding: 80px 20px; 
             color: #94a3b8; 
+        }
+
+        /* Bildirim Stili */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+        .notification.show {
+            transform: translateX(0);
         }
     </style>
 </head>
@@ -176,8 +188,7 @@
             </button>
         </div>
         
-        <div class="category-scroll" id="categoryList">
-            </div>
+        <div class="category-scroll" id="categoryList"></div>
     </div>
 
     <div class="px-5 py-4" id="productList">
@@ -244,9 +255,7 @@
             
             <div class="p-8">
                 <p id="modalDesc" class="text-slate-600 text-lg leading-relaxed mb-8"></p>
-                
                 <div id="modalExtras" class="mb-8 hidden"></div>
-
                 <div class="flex justify-between items-center pt-4 border-t border-slate-100">
                     <div class="flex flex-col">
                         <span class="text-sm text-slate-400 font-medium">Fiyat</span>
@@ -259,6 +268,8 @@
             </div>
         </div>
     </div>
+    
+    <div class="notification" id="notification"></div>
 
     <script>
         let products = [];
@@ -267,6 +278,8 @@
         let tableId = new URLSearchParams(window.location.search).get('table') || '1';
 
         document.getElementById('tableNumDisplay').innerText = tableId;
+        // Base64 Placeholder Resim (Boş resim hatalarını engeller)
+        const placeholderSvg = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcnk9IjEwIiBmaWxsPSIjZGVlMzE3Ii8+PHBhdGggZD0iTTUwLDEwTDIwLDIwVjgwTDUwLDkwTDgwLDgwVjIwTDUwLDEwWiIgZmlsbD0iI2YxZjVmOSIgc3Ryb2tlPSIjNjQ3NDhiIiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSIxMCIgZmlsbD0iIzY0NzQ4YiIvPjwvc3ZnPg==';
 
         // BAŞLANGIÇ
         async function init() {
@@ -336,12 +349,12 @@
             
             let html = '';
             filtered.forEach(p => {
-                const imgUrl = p.image_url && p.image_url.length > 5 ? p.image_url : 'https://placehold.co/200x200/e2e8f0/64748b?text=Lezzet';
+                const imgUrl = (p.image_url && p.image_url.length > 5) ? p.image_url : placeholderSvg;
                 const desc = p.description || 'Lezzetli bir seçim.';
 
                 html += `
                 <div class="product-card" onclick="openProductDetail(${p.id})">
-                    <img src="${imgUrl}" class="prod-img" alt="${p.name}" loading="lazy">
+                    <img src="${imgUrl}" class="prod-img" alt="${p.name}" loading="lazy" onerror="this.onerror=null;this.src='${placeholderSvg}'">
                     <div class="flex-1 flex flex-col justify-between min-w-0">
                         <div>
                             <h3 class="font-bold text-slate-800 text-lg truncate leading-tight">${p.name}</h3>
@@ -395,11 +408,12 @@
             for (const [id, qty] of Object.entries(cart)) {
                 const p = products.find(x => x.id == id);
                 if (p) {
+                    const imgUrl = (p.image_url && p.image_url.length > 5) ? p.image_url : placeholderSvg;
                     html += `
                     <div class="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
                         <div class="flex items-center gap-4">
                              <div class="bg-slate-50 p-2 rounded-xl">
-                                <img src="${p.image_url || ''}" class="w-12 h-12 object-cover rounded-lg">
+                                <img src="${imgUrl}" class="w-12 h-12 object-cover rounded-lg" onerror="this.onerror=null;this.src='${placeholderSvg}'">
                              </div>
                              <div>
                                 <div class="font-bold text-slate-800 text-lg">${p.name}</div>
@@ -434,7 +448,9 @@
             const p = products.find(x => x.id == id);
             if(!p) return;
             
-            document.getElementById('modalImg').src = p.image_url || 'https://placehold.co/400';
+            const imgUrl = (p.image_url && p.image_url.length > 5) ? p.image_url : placeholderSvg;
+            
+            document.getElementById('modalImg').src = imgUrl;
             document.getElementById('modalTitle').innerText = p.name;
             document.getElementById('modalDesc').innerText = p.description || 'Bu ürün için açıklama bulunmuyor.';
             document.getElementById('modalPrice').innerText = p.price + ' ₺';
@@ -445,7 +461,7 @@
         }
         function closeProductModal() { document.getElementById('productModal').classList.remove('active'); }
 
-        // SİPARİŞ VERME
+        // SİPARİŞ VERME (DÜZELTİLMİŞ VERSİYON)
         async function placeOrder() {
             if (Object.keys(cart).length === 0) return;
             
@@ -456,7 +472,8 @@
             
             const items = [];
             for (const [id, qty] of Object.entries(cart)) {
-                items.push({ product_id: parseInt(id), quantity: qty, extras: {} });
+                const p = products.find(p => p.id == id);
+                items.push({ product_id: parseInt(id), quantity: qty, extras: {}, price: p.price });
             }
             
             const note = document.getElementById('orderNote').value;
@@ -466,26 +483,49 @@
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        table_id: parseInt(tableId),
+                        table_number: parseInt(tableId),
                         items: items,
                         customer_notes: note
                     })
                 });
                 
                 if (res.ok) {
-                    alert('✅ Siparişiniz başarıyla alındı! Mutfağa iletildi.');
-                    cart = {};
-                    updateCartUI();
-                    closeCart();
+                    // --- BAŞARILI ---
+                    console.log('✅ Sipariş başarıyla alındı.');
+                    
+                    // UI Temizliği (Hata çıksa bile kullanıcı görmemeli)
+                    try {
+                        cart = {};
+                        updateCartUI();
+                        closeCart();
+                    } catch(uiError) {
+                        console.error("Arayüz güncellenirken önemsiz hata:", uiError);
+                    }
+
+                    // Kullanıcıya güzel bir bildirim (Alert yerine)
+                    const notif = document.getElementById('notification');
+                    if(notif) {
+                        notif.textContent = '✅ Siparişiniz mutfağa iletildi!';
+                        notif.className = 'notification show';
+                        notif.style.backgroundColor = '#10b981';
+                        setTimeout(() => notif.classList.remove('show'), 3000);
+                    }
+
                 } else {
+                    // --- SUNUCU HATASI (400/500) ---
                     const err = await res.json();
                     alert('❌ Hata: ' + (err.detail || 'Sipariş verilemedi'));
                 }
+
             } catch (e) {
-                alert('❌ Bağlantı hatası!');
+                // --- AĞ HATASI ---
+                console.error(e);
+                alert('❌ Bağlantı hatası! Lütfen garson çağırın.');
             } finally {
-                btn.innerHTML = originalHTML;
-                btn.disabled = false;
+                if(btn) {
+                    btn.innerHTML = originalHTML;
+                    btn.disabled = false;
+                }
             }
         }
 
@@ -496,10 +536,6 @@
                     const res = await fetch(`/api/tables/${tableId}/call-waiter`, {method:'POST'});
                     if(res.ok) {
                         alert('🔔 Garsona bildirim gönderildi!');
-                        // Görsel efekt
-                        const ping = document.getElementById('waiterPing');
-                        ping.classList.remove('hidden');
-                        setTimeout(() => ping.classList.add('hidden'), 5000);
                     } else {
                         alert('Hata oluştu.');
                     }
@@ -512,19 +548,27 @@
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
             
-            ws.onopen = () => ws.send(JSON.stringify({type: 'register', client_type: 'customer'}));
+            ws.onopen = () => {
+                console.log("WS Connected for customer");
+                ws.send(JSON.stringify({type: 'register', client_type: 'customer'}));
+            }
             
             ws.onmessage = (event) => {
                 try {
                     const msg = JSON.parse(event.data);
                     if (msg.type === 'order_updated') {
-                        // Sadece basit bir bildirim (İleride geliştirilebilir)
                         console.log("Sipariş güncellendi:", msg.data);
                     }
-                } catch(e){}
+                } catch(e){
+                    console.error("WS Message Error:", e);
+                }
             };
             
-            ws.onclose = () => setTimeout(connectWS, 3000);
+            ws.onclose = () => {
+                 console.warn("WS Disconnected. Reconnecting in 3s...");
+                 setTimeout(connectWS, 3000);
+            }
+            ws.onerror = (e) => console.error("WS Error:", e);
         }
 
         init();
