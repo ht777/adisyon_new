@@ -3,110 +3,176 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dijital Menü</title>
+    <title>Menü | Restoran</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { -webkit-tap-highlight-color: transparent; background-color: #f8fafc; padding-bottom: 100px; font-family: 'Inter', sans-serif; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #f8fafc; 
+            padding-bottom: 120px; /* Sepet için boşluk */
+            -webkit-tap-highlight-color: transparent;
+        }
         
-        /* Sticky Header & Categories */
+        /* Sticky Header */
         .sticky-header {
-            position: sticky; top: 0; z-index: 40;
-            background: rgba(255, 255, 255, 0.95);
+            position: sticky; 
+            top: 0; 
+            z-index: 40;
+            background: rgba(255, 255, 255, 0.98);
             backdrop-filter: blur(10px);
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+            padding-bottom: 5px;
         }
         
+        /* Category Scroll */
         .category-scroll {
-            display: flex; overflow-x: auto; padding: 10px 15px; gap: 10px;
-            scrollbar-width: none;
+            display: flex; 
+            overflow-x: auto; 
+            padding: 10px 15px; 
+            gap: 12px;
+            scrollbar-width: none; /* Firefox */
         }
-        .category-scroll::-webkit-scrollbar { display: none; }
+        .category-scroll::-webkit-scrollbar { display: none; } /* Chrome/Safari */
         
         .cat-pill {
-            white-space: nowrap; padding: 8px 18px; border-radius: 50px;
-            background: #fff; color: #64748b; font-weight: 600; font-size: 0.9rem;
-            border: 1px solid #e2e8f0; transition: all 0.3s;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+            white-space: nowrap; 
+            padding: 10px 20px; 
+            border-radius: 50px;
+            background: #fff; 
+            color: #64748b; 
+            font-weight: 600; 
+            font-size: 0.95rem;
+            border: 1px solid #e2e8f0; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         .cat-pill.active {
-            background: #0ea5e9; color: white; border-color: #0ea5e9;
-            box-shadow: 0 4px 10px rgba(14, 165, 233, 0.3); transform: translateY(-1px);
+            background: #0ea5e9; 
+            color: white; 
+            border-color: #0ea5e9;
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3); 
+            transform: translateY(-1px);
         }
 
         /* Product Card */
         .product-card {
-            background: white; border-radius: 20px; padding: 12px;
-            display: flex; gap: 15px; margin-bottom: 16px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            background: white; 
+            border-radius: 24px; 
+            padding: 16px;
+            display: flex; 
+            gap: 16px; 
+            margin-bottom: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05);
             border: 1px solid #f1f5f9;
             transition: transform 0.2s;
-            position: relative; overflow: hidden;
+            position: relative;
+            overflow: hidden;
         }
         .product-card:active { transform: scale(0.98); }
         
         .prod-img {
-            width: 110px; height: 110px; border-radius: 16px; object-fit: cover;
-            background-color: #e2e8f0; flex-shrink: 0;
+            width: 120px; 
+            height: 120px; 
+            border-radius: 20px; 
+            object-fit: cover;
+            background-color: #e2e8f0; 
+            flex-shrink: 0;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
         }
         
         .add-btn {
-            background: #f0f9ff; color: #0ea5e9; width: 40px; height: 40px;
-            border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-size: 1.2rem; cursor: pointer; transition: all 0.2s;
+            background: #f0f9ff; 
+            color: #0ea5e9; 
+            width: 44px; 
+            height: 44px;
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            font-size: 1.2rem; 
+            cursor: pointer; 
+            transition: all 0.2s;
             box-shadow: 0 4px 10px rgba(14, 165, 233, 0.1);
         }
-        .add-btn:active { background: #0ea5e9; color: white; transform: scale(0.9); }
+        .add-btn:active { 
+            background: #0ea5e9; 
+            color: white; 
+            transform: scale(0.9); 
+        }
 
         /* Floating Cart Button */
         .floating-cart {
-            position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%);
-            width: 90%; max-width: 400px;
-            background: #1e293b; color: white;
-            padding: 16px 24px; border-radius: 24px;
-            display: flex; justify-content: space-between; align-items: center;
-            box-shadow: 0 15px 30px rgba(30, 41, 59, 0.4);
-            z-index: 100; cursor: pointer;
+            position: fixed; 
+            bottom: 30px; 
+            left: 50%; 
+            transform: translateX(-50%);
+            width: 90%; 
+            max-width: 450px;
+            background: #0f172a; 
+            color: white;
+            padding: 18px 24px; 
+            border-radius: 100px;
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.3);
+            z-index: 100; 
+            cursor: pointer;
             animation: slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            backdrop-filter: blur(5px);
         }
         
         @keyframes slideUp { from { transform: translate(-50%, 150%); } to { transform: translate(-50%, 0); } }
         .hidden { display: none !important; }
 
-        /* Modal (Bottom Sheet Style) */
+        /* Modal */
         .modal-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200;
             display: flex; align-items: flex-end; opacity: 0; pointer-events: none; transition: opacity 0.3s;
-            backdrop-filter: blur(2px);
+            backdrop-filter: blur(4px);
         }
         .modal-overlay.active { opacity: 1; pointer-events: auto; }
         
         .modal-content {
             background: white; width: 100%; border-radius: 30px 30px 0 0;
-            padding: 24px; max-height: 85vh; overflow-y: auto;
+            padding: 30px; max-height: 85vh; overflow-y: auto;
             transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
             box-shadow: 0 -10px 40px rgba(0,0,0,0.1);
         }
         .modal-overlay.active .modal-content { transform: translateY(0); }
 
-        /* Loading & Empty States */
-        .state-container { text-align: center; padding: 60px 20px; color: #94a3b8; }
+        /* Loading State */
+        .state-container { 
+            text-align: center; 
+            padding: 80px 20px; 
+            color: #94a3b8; 
+        }
     </style>
 </head>
 <body>
 
     <div class="sticky-header">
-        <div class="flex justify-between items-center px-5 py-4">
+        <div class="flex justify-between items-center px-6 py-5">
             <div>
-                <h1 class="text-2xl font-extrabold text-slate-800 tracking-tight">Menü</h1>
-                <div class="flex items-center gap-1 text-sm font-medium text-slate-500">
-                    <i class="fas fa-map-marker-alt text-red-500"></i>
-                    Masa <span id="tableNumDisplay" class="text-slate-800">...</span>
+                <h1 class="text-3xl font-extrabold text-slate-800 tracking-tight">Menü</h1>
+                <div class="flex items-center gap-2 text-sm font-medium text-slate-500 mt-1">
+                    <span class="bg-slate-100 px-2 py-1 rounded-lg text-slate-600">
+                        <i class="fas fa-map-marker-alt text-red-500 mr-1"></i>
+                        Masa <span id="tableNumDisplay">...</span>
+                    </span>
                 </div>
             </div>
-            <button onclick="callWaiter()" class="bg-white border border-slate-200 p-3 rounded-full text-slate-600 shadow-sm active:scale-95 transition">
-                <i class="fas fa-bell text-lg"></i>
+            
+            <button onclick="callWaiter()" class="group bg-white border border-slate-200 p-3 rounded-2xl shadow-sm active:scale-95 transition-all hover:border-orange-200 hover:shadow-md">
+                <div class="relative">
+                    <i class="fas fa-bell text-2xl text-slate-400 group-hover:text-orange-500 transition-colors"></i>
+                    <span class="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full animate-ping opacity-75 hidden" id="waiterPing"></span>
+                </div>
             </button>
         </div>
         
@@ -114,44 +180,49 @@
             </div>
     </div>
 
-    <div class="px-4 py-4 pb-20" id="productList">
+    <div class="px-5 py-4" id="productList">
         <div class="state-container">
-            <i class="fas fa-circle-notch fa-spin fa-2x text-blue-500"></i>
-            <p class="mt-4 font-medium">Lezzetler yükleniyor...</p>
+            <i class="fas fa-circle-notch fa-spin fa-3x text-blue-500 mb-4"></i>
+            <p class="font-medium text-lg">Lezzetler hazırlanıyor...</p>
         </div>
     </div>
 
     <div id="cartBtn" class="floating-cart hidden" onclick="showCart()">
-        <div class="flex items-center gap-3">
-            <div class="bg-blue-500 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-lg" id="cartCount">0</div>
+        <div class="flex items-center gap-4">
+            <div class="bg-white text-slate-900 w-12 h-12 rounded-full flex items-center justify-center font-bold shadow-lg text-lg" id="cartCount">0</div>
             <div class="flex flex-col">
-                <span class="font-bold text-sm">Sepeti Görüntüle</span>
-                <span class="text-xs text-slate-400">Siparişi tamamla</span>
+                <span class="font-bold text-lg leading-tight">Sepeti Gör</span>
+                <span class="text-xs text-slate-400 font-medium">Siparişi Tamamla</span>
             </div>
         </div>
-        <span class="font-bold text-xl tracking-tight" id="cartTotal">0.00 ₺</span>
+        <div class="flex items-center gap-2">
+            <span class="font-bold text-2xl tracking-tight" id="cartTotal">0.00</span>
+            <span class="text-sm font-medium opacity-80">₺</span>
+        </div>
     </div>
 
     <div class="modal-overlay" id="cartModal">
         <div class="modal-content">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+            <div class="flex justify-between items-center mb-8 pb-4 border-b border-slate-100">
                 <div>
-                    <h2 class="text-2xl font-bold text-slate-800">Sepetim</h2>
-                    <p class="text-sm text-slate-500">Lezzetli seçimlerin</p>
+                    <h2 class="text-3xl font-bold text-slate-800">Sepetim</h2>
+                    <p class="text-slate-500 mt-1">Harika seçimler!</p>
                 </div>
-                <button onclick="closeCart()" class="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition">
+                <button onclick="closeCart()" class="p-3 bg-slate-50 rounded-full hover:bg-slate-100 transition">
                     <i class="fas fa-times text-slate-600 text-xl"></i>
                 </button>
             </div>
             
-            <div id="cartItemsList" class="space-y-4 mb-8"></div>
+            <div id="cartItemsList" class="space-y-6 mb-8"></div>
             
-            <div class="mb-6">
-                <label class="block text-sm font-semibold text-slate-700 mb-2">Sipariş Notu</label>
-                <textarea id="orderNote" placeholder="Örn: Soğansız olsun, acı sos istiyorum..." class="w-full p-4 border border-slate-200 rounded-2xl bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none transition"></textarea>
+            <div class="mb-8">
+                <label class="block text-sm font-bold text-slate-700 mb-3 ml-1">
+                    <i class="fas fa-pen-alt mr-2 text-blue-500"></i> Sipariş Notu
+                </label>
+                <textarea id="orderNote" placeholder="Örn: Soğansız olsun, acı sos istiyorum..." class="w-full p-4 border border-slate-200 rounded-2xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition h-32 resize-none"></textarea>
             </div>
             
-            <button onclick="placeOrder()" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-blue-200 active:scale-95 transition-transform flex justify-between px-8 items-center">
+            <button onclick="placeOrder()" class="w-full bg-blue-600 text-white py-5 rounded-2xl font-bold text-xl shadow-xl shadow-blue-200 active:scale-95 transition-transform flex justify-between px-8 items-center">
                 <span>Siparişi Onayla</span>
                 <span id="finalTotal">0.00 ₺</span>
             </button>
@@ -159,14 +230,32 @@
     </div>
 
     <div class="modal-overlay" id="productModal">
-        <div class="modal-content">
-            <button onclick="closeProductModal()" class="absolute top-4 right-4 p-2 bg-white shadow-md rounded-full z-10"><i class="fas fa-times"></i></button>
-            <img id="modalImg" src="" class="w-full h-64 object-cover rounded-2xl mb-4 shadow-sm">
-            <h2 id="modalTitle" class="text-2xl font-bold mb-2"></h2>
-            <p id="modalDesc" class="text-slate-500 mb-4 text-sm leading-relaxed"></p>
-            <div class="flex justify-between items-center mt-6 pt-4 border-t border-slate-100">
-                <span id="modalPrice" class="text-2xl font-bold text-blue-600"></span>
-                <button id="modalAddBtn" class="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold shadow-lg active:scale-95 transition">Sepete Ekle</button>
+        <div class="modal-content p-0 overflow-hidden">
+            <div class="relative">
+                <img id="modalImg" src="" class="w-full h-72 object-cover">
+                <button onclick="closeProductModal()" class="absolute top-4 right-4 p-3 bg-white/90 backdrop-blur-sm shadow-lg rounded-full z-10 hover:bg-white transition">
+                    <i class="fas fa-times text-slate-800 text-lg"></i>
+                </button>
+                <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-6 pt-20">
+                    <h2 id="modalTitle" class="text-3xl font-bold text-white mb-1 shadow-black drop-shadow-md"></h2>
+                    <span id="modalCat" class="bg-white/20 backdrop-blur-md text-white px-3 py-1 rounded-lg text-sm font-medium"></span>
+                </div>
+            </div>
+            
+            <div class="p-8">
+                <p id="modalDesc" class="text-slate-600 text-lg leading-relaxed mb-8"></p>
+                
+                <div id="modalExtras" class="mb-8 hidden"></div>
+
+                <div class="flex justify-between items-center pt-4 border-t border-slate-100">
+                    <div class="flex flex-col">
+                        <span class="text-sm text-slate-400 font-medium">Fiyat</span>
+                        <span id="modalPrice" class="text-3xl font-bold text-slate-900"></span>
+                    </div>
+                    <button id="modalAddBtn" class="bg-slate-900 text-white px-10 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-slate-300 active:scale-95 transition-transform flex items-center gap-3">
+                        <i class="fas fa-plus"></i> Sepete Ekle
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -174,12 +263,12 @@
     <script>
         let products = [];
         let categories = [];
-        let cart = {}; // { productId: quantity }
+        let cart = {}; 
         let tableId = new URLSearchParams(window.location.search).get('table') || '1';
 
         document.getElementById('tableNumDisplay').innerText = tableId;
 
-        // Başlangıç
+        // BAŞLANGIÇ
         async function init() {
             try {
                 const [catRes, prodRes] = await Promise.all([
@@ -198,19 +287,23 @@
             } catch (e) {
                 document.getElementById('productList').innerHTML = `
                     <div class="state-container text-red-500">
-                        <i class="fas fa-wifi fa-2x mb-3"></i>
+                        <i class="fas fa-wifi fa-3x mb-4 opacity-50"></i>
                         <p>Menü yüklenemedi. Lütfen tekrar deneyin.</p>
-                        <button onclick="location.reload()" class="mt-4 px-4 py-2 bg-red-100 rounded-lg text-sm font-bold">Yenile</button>
+                        <button onclick="location.reload()" class="mt-6 px-6 py-3 bg-red-100 text-red-600 rounded-xl font-bold hover:bg-red-200 transition">Yenile</button>
                     </div>`;
             }
         }
 
         function renderCategories() {
             const container = document.getElementById('categoryList');
-            let html = `<div class="cat-pill active" onclick="filterCat('Tümü', this)">Tümü</div>`;
+            let html = `<div class="cat-pill active" onclick="filterCat('Tümü', this)">
+                <i class="fas fa-th-large"></i> Tümü
+            </div>`;
             
             categories.forEach(cat => {
-                html += `<div class="cat-pill" onclick="filterCat('${cat.id}', this)">${cat.icon || ''} ${cat.name}</div>`;
+                html += `<div class="cat-pill" onclick="filterCat('${cat.id}', this)">
+                    <span class="text-xl">${cat.icon || ''}</span> ${cat.name}
+                </div>`;
             });
             container.innerHTML = html;
         }
@@ -226,28 +319,36 @@
             let filtered = products;
 
             if (filterId !== 'Tümü') {
-                // Kategori ID veya İsim eşleşmesi kontrolü (Backend yapısına göre)
                 filtered = products.filter(p => 
                     (p.category && p.category.id == filterId) || 
                     (p.category_id == filterId)
                 );
             }
             
+            if(filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="state-container">
+                        <i class="fas fa-utensils fa-3x mb-4 text-slate-200"></i>
+                        <p>Bu kategoride henüz ürün yok.</p>
+                    </div>`;
+                return;
+            }
+            
             let html = '';
             filtered.forEach(p => {
-                // Görsel kontrolü
                 const imgUrl = p.image_url && p.image_url.length > 5 ? p.image_url : 'https://placehold.co/200x200/e2e8f0/64748b?text=Lezzet';
+                const desc = p.description || 'Lezzetli bir seçim.';
 
                 html += `
                 <div class="product-card" onclick="openProductDetail(${p.id})">
                     <img src="${imgUrl}" class="prod-img" alt="${p.name}" loading="lazy">
                     <div class="flex-1 flex flex-col justify-between min-w-0">
                         <div>
-                            <h3 class="font-bold text-slate-800 text-lg truncate">${p.name}</h3>
-                            <p class="text-xs text-slate-500 line-clamp-2 mt-1 leading-relaxed">${p.description || 'Lezzetli bir seçim.'}</p>
+                            <h3 class="font-bold text-slate-800 text-lg truncate leading-tight">${p.name}</h3>
+                            <p class="text-sm text-slate-500 line-clamp-2 mt-2 leading-relaxed">${desc}</p>
                         </div>
                         <div class="flex justify-between items-end mt-3">
-                            <span class="font-bold text-lg text-slate-900">${p.price} ₺</span>
+                            <span class="font-bold text-xl text-slate-900">${p.price} ₺</span>
                             <button class="add-btn" onclick="event.stopPropagation(); addToCart(${p.id})">
                                 <i class="fas fa-plus"></i>
                             </button>
@@ -255,22 +356,14 @@
                     </div>
                 </div>`;
             });
-            
-            if(filtered.length === 0) html = `
-                <div class="state-container">
-                    <i class="fas fa-search fa-2x mb-3 text-slate-300"></i>
-                    <p>Bu kategoride ürün bulunamadı.</p>
-                </div>`;
-                
             container.innerHTML = html;
         }
 
+        // SEPET İŞLEMLERİ
         function addToCart(id) {
             if (!cart[id]) cart[id] = 0;
             cart[id]++;
             updateCartUI();
-            
-            // Titreşim (Mobil hissi)
             if (navigator.vibrate) navigator.vibrate(50);
         }
 
@@ -287,7 +380,7 @@
             }
 
             document.getElementById('cartCount').innerText = count;
-            document.getElementById('cartTotal').innerText = total.toFixed(2) + ' ₺';
+            document.getElementById('cartTotal').innerText = total.toFixed(2);
             document.getElementById('finalTotal').innerText = total.toFixed(2) + ' ₺';
             
             const btn = document.getElementById('cartBtn');
@@ -303,21 +396,26 @@
                 const p = products.find(x => x.id == id);
                 if (p) {
                     html += `
-                    <div class="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                        <div>
-                            <div class="font-bold text-slate-800">${p.name}</div>
-                            <div class="text-sm text-slate-500 font-medium">${p.price} ₺</div>
+                    <div class="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                        <div class="flex items-center gap-4">
+                             <div class="bg-slate-50 p-2 rounded-xl">
+                                <img src="${p.image_url || ''}" class="w-12 h-12 object-cover rounded-lg">
+                             </div>
+                             <div>
+                                <div class="font-bold text-slate-800 text-lg">${p.name}</div>
+                                <div class="text-sm text-slate-500 font-medium">${p.price} ₺</div>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-4 bg-white px-2 py-1 rounded-xl shadow-sm border border-slate-100">
-                            <button onclick="changeQty(${id}, -1)" class="w-8 h-8 text-slate-400 hover:text-slate-700 text-lg font-bold">-</button>
-                            <span class="font-bold w-4 text-center text-slate-800">${qty}</span>
-                            <button onclick="changeQty(${id}, 1)" class="w-8 h-8 text-blue-500 hover:text-blue-700 text-lg font-bold">+</button>
+                        <div class="flex items-center gap-3 bg-slate-50 px-3 py-2 rounded-xl border border-slate-100">
+                            <button onclick="changeQty(${id}, -1)" class="w-8 h-8 text-slate-400 hover:text-slate-700 text-lg font-bold transition">-</button>
+                            <span class="font-bold w-6 text-center text-slate-800 text-lg">${qty}</span>
+                            <button onclick="changeQty(${id}, 1)" class="w-8 h-8 text-blue-500 hover:text-blue-700 text-lg font-bold transition">+</button>
                         </div>
                     </div>`;
                 }
             }
             
-            list.innerHTML = html;
+            list.innerHTML = html || '<p class="text-center text-slate-400 py-4">Sepetiniz boş.</p>';
             document.getElementById('cartModal').classList.add('active');
         }
 
@@ -325,37 +423,36 @@
             cart[id] += delta;
             if (cart[id] <= 0) delete cart[id];
             updateCartUI();
-            showCart(); // Listeyi anlık güncelle
+            showCart(); 
             if (Object.keys(cart).length === 0) closeCart();
         }
 
-        function closeCart() {
-            document.getElementById('cartModal').classList.remove('active');
-        }
+        function closeCart() { document.getElementById('cartModal').classList.remove('active'); }
 
-        // Ürün Detay (İsteğe bağlı)
+        // ÜRÜN DETAY
         function openProductDetail(id) {
             const p = products.find(x => x.id == id);
             if(!p) return;
             
             document.getElementById('modalImg').src = p.image_url || 'https://placehold.co/400';
             document.getElementById('modalTitle').innerText = p.name;
-            document.getElementById('modalDesc').innerText = p.description || '';
+            document.getElementById('modalDesc').innerText = p.description || 'Bu ürün için açıklama bulunmuyor.';
             document.getElementById('modalPrice').innerText = p.price + ' ₺';
-            document.getElementById('modalAddBtn').onclick = () => { addToCart(id); closeProductModal(); };
+            document.getElementById('modalCat').innerText = p.category ? p.category.name : 'Genel';
             
+            document.getElementById('modalAddBtn').onclick = () => { addToCart(id); closeProductModal(); };
             document.getElementById('productModal').classList.add('active');
         }
-        function closeProductModal() {
-            document.getElementById('productModal').classList.remove('active');
-        }
+        function closeProductModal() { document.getElementById('productModal').classList.remove('active'); }
 
+        // SİPARİŞ VERME
         async function placeOrder() {
             if (Object.keys(cart).length === 0) return;
             
             const btn = document.querySelector('#cartModal button[onclick="placeOrder()"]');
-            const originalText = btn.innerHTML;
+            const originalHTML = btn.innerHTML;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gönderiliyor...';
+            btn.disabled = true;
             
             const items = [];
             for (const [id, qty] of Object.entries(cart)) {
@@ -376,7 +473,7 @@
                 });
                 
                 if (res.ok) {
-                    alert('✅ Siparişiniz mutfağa iletildi!');
+                    alert('✅ Siparişiniz başarıyla alındı! Mutfağa iletildi.');
                     cart = {};
                     updateCartUI();
                     closeCart();
@@ -387,18 +484,51 @@
             } catch (e) {
                 alert('❌ Bağlantı hatası!');
             } finally {
-                btn.innerHTML = originalText;
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
             }
         }
 
-        function callWaiter() {
-            if(confirm('Garson çağırılsın mı?')) {
-                alert('🔔 Garsona bildirim gönderildi!');
-                // Backend entegrasyonu buraya yapılabilir
+        // GARSON ÇAĞIRMA
+        async function callWaiter() {
+            if(confirm('Garson çağırmak istiyor musunuz?')) {
+                try {
+                    const res = await fetch(`/api/tables/${tableId}/call-waiter`, {method:'POST'});
+                    if(res.ok) {
+                        alert('🔔 Garsona bildirim gönderildi!');
+                        // Görsel efekt
+                        const ping = document.getElementById('waiterPing');
+                        ping.classList.remove('hidden');
+                        setTimeout(() => ping.classList.add('hidden'), 5000);
+                    } else {
+                        alert('Hata oluştu.');
+                    }
+                } catch(e) { alert('Bağlantı hatası.'); }
             }
+        }
+
+        // WEBSOCKET
+        function connectWS() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+            
+            ws.onopen = () => ws.send(JSON.stringify({type: 'register', client_type: 'customer'}));
+            
+            ws.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    if (msg.type === 'order_updated') {
+                        // Sadece basit bir bildirim (İleride geliştirilebilir)
+                        console.log("Sipariş güncellendi:", msg.data);
+                    }
+                } catch(e){}
+            };
+            
+            ws.onclose = () => setTimeout(connectWS, 3000);
         }
 
         init();
+        connectWS();
     </script>
 </body>
 </html>

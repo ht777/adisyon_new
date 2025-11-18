@@ -3,393 +3,312 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Paneli</title>
+    <title>Admin Paneli | Restoran</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .nav-item.active { background-color: #1e293b; border-left: 4px solid #3b82f6; }
+    </style>
 </head>
-<body class="bg-gray-50 flex h-screen overflow-hidden">
-
-    <div class="w-64 bg-slate-900 text-white flex-shrink-0 flex flex-col">
-        <div class="p-6 text-2xl font-bold text-center border-b border-slate-800">
-            <i class="fas fa-utensils mr-2"></i> Yönetim
+<body class="bg-gray-50 flex h-screen overflow-hidden font-sans">
+    <div class="w-64 bg-slate-900 text-white flex-shrink-0 flex flex-col shadow-xl z-20">
+        <div class="p-6 text-2xl font-bold text-center border-b border-slate-800 flex items-center justify-center gap-2">
+            <i class="fas fa-utensils text-blue-500"></i> <span>Yönetim</span>
         </div>
-        <nav class="flex-1 overflow-y-auto py-4">
-            <a href="#" onclick="showSection('dashboard')" class="nav-item block px-6 py-3 hover:bg-slate-800 transition active"><i class="fas fa-tachometer-alt w-6"></i> Dashboard</a>
-            <a href="#" onclick="showSection('orders')" class="nav-item block px-6 py-3 hover:bg-slate-800 transition"><i class="fas fa-clipboard-list w-6"></i> Siparişler</a>
-            <a href="#" onclick="showSection('products')" class="nav-item block px-6 py-3 hover:bg-slate-800 transition"><i class="fas fa-hamburger w-6"></i> Ürünler</a>
-            <a href="#" onclick="showSection('categories')" class="nav-item block px-6 py-3 hover:bg-slate-800 transition"><i class="fas fa-tags w-6"></i> Kategoriler</a>
-            <a href="#" onclick="showSection('tables')" class="nav-item block px-6 py-3 hover:bg-slate-800 transition"><i class="fas fa-chair w-6"></i> Masalar</a>
+        
+        <nav class="flex-1 overflow-y-auto py-6 space-y-1">
+            <button onclick="showSection('dashboard')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition flex items-center gap-3 active"><i class="fas fa-chart-pie w-5 text-center"></i> Dashboard</button>
+            <button onclick="showSection('orders')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition flex items-center gap-3"><i class="fas fa-receipt w-5 text-center"></i> Siparişler</button>
+            <button onclick="showSection('products')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition flex items-center gap-3"><i class="fas fa-hamburger w-5 text-center"></i> Ürünler</button>
+            <button onclick="showSection('categories')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition flex items-center gap-3"><i class="fas fa-tags w-5 text-center"></i> Kategoriler</button>
+            <button onclick="showSection('tables')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition flex items-center gap-3"><i class="fas fa-chair w-5 text-center"></i> Masalar</button>
         </nav>
+        
         <div class="p-4 border-t border-slate-800">
-            <button onclick="logout()" class="w-full bg-red-600 py-2 rounded text-sm font-bold hover:bg-red-700 transition">ÇIKIŞ YAP</button>
+            <button onclick="logout()" class="w-full bg-red-600/90 hover:bg-red-600 py-3 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 shadow-lg"><i class="fas fa-sign-out-alt"></i> ÇIKIŞ YAP</button>
         </div>
     </div>
 
-    <div class="flex-1 flex flex-col overflow-hidden">
-        <header class="bg-white shadow p-4 flex justify-between items-center">
-            <h2 id="pageTitle" class="text-xl font-bold text-gray-800">Dashboard</h2>
-            <div class="text-sm text-gray-600">Hoşgeldin, <span id="adminName" class="font-bold">Admin</span></div>
+    <div class="flex-1 flex flex-col overflow-hidden relative">
+        <header class="bg-white shadow-sm p-5 flex justify-between items-center z-10">
+            <div><h2 id="pageTitle" class="text-2xl font-bold text-gray-800">Dashboard</h2><p class="text-sm text-gray-500 mt-1">Genel bakış ve istatistikler</p></div>
+            <div class="flex items-center gap-4"><div class="text-right hidden sm:block"><div class="text-sm font-bold text-gray-800">Yönetici</div><div class="text-xs text-green-500">● Çevrimiçi</div></div><div class="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center text-slate-600"><i class="fas fa-user"></i></div></div>
         </header>
 
-        <main class="flex-1 overflow-y-auto p-6">
+        <main class="flex-1 overflow-y-auto p-6 bg-gray-50/50">
             
             <div id="dashboardSection" class="section">
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                    <div class="bg-white p-6 rounded-lg shadow border-l-4 border-blue-500">
-                        <h3 class="text-gray-500 text-sm">Toplam Ürün</h3>
-                        <p class="text-3xl font-bold" id="statProducts">-</p>
-                    </div>
-                    <div class="bg-white p-6 rounded-lg shadow border-l-4 border-green-500">
-                        <h3 class="text-gray-500 text-sm">Toplam Sipariş</h3>
-                        <p class="text-3xl font-bold" id="statOrders">-</p>
-                    </div>
-                    <div class="bg-white p-6 rounded-lg shadow border-l-4 border-orange-500">
-                        <h3 class="text-gray-500 text-sm">Masa Sayısı</h3>
-                        <p class="text-3xl font-bold" id="statTables">-</p>
-                    </div>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border-b-4 border-green-500 hover:shadow-md transition"><div class="flex justify-between items-start"><div><h3 class="text-gray-500 text-xs font-bold uppercase tracking-wider">Günlük Ciro</h3><p class="text-3xl font-bold text-slate-800 mt-1" id="statRevenue">0.00 ₺</p></div><div class="p-3 bg-green-50 rounded-lg text-green-600"><i class="fas fa-wallet text-xl"></i></div></div></div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border-b-4 border-blue-500 hover:shadow-md transition"><div class="flex justify-between items-start"><div><h3 class="text-gray-500 text-xs font-bold uppercase tracking-wider">Bugünkü Sipariş</h3><p class="text-3xl font-bold text-slate-800 mt-1" id="statTodayOrders">0</p></div><div class="p-3 bg-blue-50 rounded-lg text-blue-600"><i class="fas fa-shopping-bag text-xl"></i></div></div></div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border-b-4 border-orange-500 hover:shadow-md transition"><div class="flex justify-between items-start"><div><h3 class="text-gray-500 text-xs font-bold uppercase tracking-wider">Aktif Sipariş</h3><p class="text-3xl font-bold text-slate-800 mt-1" id="statActiveOrders">0</p></div><div class="p-3 bg-orange-50 rounded-lg text-orange-600"><i class="fas fa-fire text-xl"></i></div></div></div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border-b-4 border-purple-500 hover:shadow-md transition"><div class="flex justify-between items-start"><div><h3 class="text-gray-500 text-xs font-bold uppercase tracking-wider">Menü Ürünleri</h3><p class="text-3xl font-bold text-slate-800 mt-1" id="statProducts">-</p></div><div class="p-3 bg-purple-50 rounded-lg text-purple-600"><i class="fas fa-box-open text-xl"></i></div></div></div>
                 </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm"><h3 class="font-bold text-gray-800 mb-6 flex items-center gap-2"><i class="fas fa-chart-line text-blue-500"></i> Haftalık Satış Grafiği</h3><div class="w-full h-80"><canvas id="salesChart"></canvas></div></div>
             </div>
 
             <div id="productsSection" class="section hidden">
-                <div class="flex justify-between mb-4">
-                    <h3 class="text-lg font-bold">Ürün Listesi</h3>
-                    <button onclick="openProductModal()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">+ Yeni Ürün</button>
-                </div>
-                <div class="bg-white rounded shadow overflow-hidden">
-                    <table class="min-w-full">
-                        <thead class="bg-slate-100">
-                            <tr>
-                                <th class="p-3 text-left">Resim</th>
-                                <th class="p-3 text-left">Ürün Adı</th>
-                                <th class="p-3 text-left">Kategori</th>
-                                <th class="p-3 text-left">Fiyat</th>
-                                <th class="p-3 text-left">İşlem</th>
-                            </tr>
-                        </thead>
-                        <tbody id="productsTable"></tbody>
-                    </table>
-                </div>
+                <div class="flex justify-between items-center mb-6"><h3 class="text-lg font-bold text-gray-800">Ürün Listesi</h3><button onclick="openProductModal()" class="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition flex items-center gap-2 shadow-lg shadow-blue-200"><i class="fas fa-plus"></i> Yeni Ürün</button></div>
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100"><table class="min-w-full divide-y divide-gray-100"><thead class="bg-gray-50"><tr><th class="p-4 text-left text-xs font-bold text-gray-500 uppercase">Resim</th><th class="p-4 text-left text-xs font-bold text-gray-500 uppercase">Ürün Adı</th><th class="p-4 text-left text-xs font-bold text-gray-500 uppercase">Kategori</th><th class="p-4 text-left text-xs font-bold text-gray-500 uppercase">Fiyat</th><th class="p-4 text-center text-xs font-bold text-gray-500 uppercase">İşlem</th></tr></thead><tbody id="productsTable" class="divide-y divide-gray-100"></tbody></table></div>
             </div>
 
             <div id="categoriesSection" class="section hidden">
-                <div class="flex justify-between mb-4">
-                    <h3 class="text-lg font-bold">Kategori Listesi</h3>
-                    <button onclick="addCategory()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">+ Yeni Kategori</button>
-                </div>
-                <div class="bg-white rounded shadow overflow-hidden">
-                    <table class="min-w-full">
-                        <thead class="bg-slate-100">
-                            <tr>
-                                <th class="p-3 text-left">İkon</th>
-                                <th class="p-3 text-left">Kategori Adı</th>
-                                <th class="p-3 text-left">Sıra</th>
-                                <th class="p-3 text-left">İşlem</th>
-                            </tr>
-                        </thead>
-                        <tbody id="categoriesTable"></tbody>
-                    </table>
-                </div>
+                <div class="flex justify-between items-center mb-6"><h3 class="text-lg font-bold text-gray-800">Kategoriler</h3><button onclick="addCategory()" class="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition flex items-center gap-2 shadow-lg shadow-blue-200"><i class="fas fa-plus"></i> Yeni Kategori</button></div>
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100"><table class="min-w-full divide-y divide-gray-100"><thead class="bg-gray-50"><tr><th class="p-4 text-left text-xs font-bold text-gray-500 uppercase">İkon</th><th class="p-4 text-left text-xs font-bold text-gray-500 uppercase">Kategori Adı</th><th class="p-4 text-center text-xs font-bold text-gray-500 uppercase">İşlem</th></tr></thead><tbody id="categoriesTable" class="divide-y divide-gray-100"></tbody></table></div>
             </div>
 
             <div id="tablesSection" class="section hidden">
-                <div class="flex justify-between mb-4">
-                    <h3 class="text-lg font-bold">Masa Listesi</h3>
-                    <button onclick="addTable()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">+ Yeni Masa</button>
-                </div>
-                <div class="bg-white rounded shadow overflow-hidden">
-                    <table class="min-w-full">
-                        <thead class="bg-slate-100">
-                            <tr>
-                                <th class="p-3 text-left">Masa Adı</th>
-                                <th class="p-3 text-left">No</th>
-                                <th class="p-3 text-left">QR Kod</th>
-                                <th class="p-3 text-left">İşlem</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tablesTable"></tbody>
-                    </table>
-                </div>
+                <div class="flex justify-between items-center mb-6"><h3 class="text-lg font-bold text-gray-800">Masa Yönetimi</h3><button onclick="addTable()" class="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition flex items-center gap-2 shadow-lg shadow-blue-200"><i class="fas fa-plus"></i> Yeni Masa</button></div>
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100"><table class="min-w-full divide-y divide-gray-100"><thead class="bg-gray-50"><tr><th class="p-4 text-left text-xs font-bold text-gray-500 uppercase">Masa Adı</th><th class="p-4 text-left text-xs font-bold text-gray-500 uppercase">Numara</th><th class="p-4 text-center text-xs font-bold text-gray-500 uppercase">İşlemler</th></tr></thead><tbody id="tablesTable" class="divide-y divide-gray-100"></tbody></table></div>
             </div>
             
             <div id="ordersSection" class="section hidden">
-                <div class="flex justify-between mb-4">
-                    <h3 class="text-lg font-bold">Son Siparişler</h3>
-                    <button onclick="loadOrders()" class="bg-gray-200 px-4 py-2 rounded hover:bg-gray-300">Yenile</button>
-                </div>
-                <div class="bg-white rounded shadow overflow-hidden">
-                    <table class="min-w-full">
-                        <thead class="bg-slate-100">
-                            <tr>
-                                <th class="p-3 text-left">ID</th>
-                                <th class="p-3 text-left">Masa</th>
-                                <th class="p-3 text-left">Tutar</th>
-                                <th class="p-3 text-left">Durum</th>
-                                <th class="p-3 text-left">Tarih</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ordersTable"></tbody>
-                    </table>
-                </div>
+                <div class="flex justify-between items-center mb-6"><h3 class="text-lg font-bold text-gray-800">Tüm Siparişler</h3><button onclick="loadOrders()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition"><i class="fas fa-sync-alt mr-1"></i> Yenile</button></div>
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100"><table class="min-w-full divide-y divide-gray-100"><thead class="bg-gray-50"><tr><th class="p-4 text-left text-xs font-bold text-gray-500 uppercase">ID</th><th class="p-4 text-left text-xs font-bold text-gray-500 uppercase">Masa</th><th class="p-4 text-left text-xs font-bold text-gray-500 uppercase">Tutar</th><th class="p-4 text-left text-xs font-bold text-gray-500 uppercase">Durum</th><th class="p-4 text-left text-xs font-bold text-gray-500 uppercase">Tarih</th><th class="p-4 text-center text-xs font-bold text-gray-500 uppercase">İşlem</th></tr></thead><tbody id="ordersTable" class="divide-y divide-gray-100"></tbody></table></div>
             </div>
 
         </main>
     </div>
 
-    <div id="productModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg w-96 p-6">
-            <h3 class="text-xl font-bold mb-4">Yeni Ürün Ekle</h3>
-            <form id="productForm" onsubmit="saveProduct(event)">
-                <input type="text" name="name" placeholder="Ürün Adı" class="w-full border p-2 rounded mb-3" required>
-                <textarea name="description" placeholder="Açıklama" class="w-full border p-2 rounded mb-3"></textarea>
-                <input type="number" name="price" placeholder="Fiyat (TL)" step="0.01" class="w-full border p-2 rounded mb-3" required>
-                
-                <select name="category_id" id="categorySelect" class="w-full border p-2 rounded mb-3" required>
-                    <option value="">Kategori Seçin</option>
-                </select>
-                
-                <div class="mb-4">
-                    <label class="block text-sm text-gray-600 mb-1">Ürün Görseli</label>
-                    <input type="file" id="productImage" accept="image/*" class="w-full text-sm">
+    <div id="productModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-50 transition-opacity">
+        <div class="bg-white rounded-2xl w-96 p-8 shadow-2xl transform scale-100 transition-transform">
+            <h3 class="text-2xl font-bold mb-6 text-gray-800">Yeni Ürün Ekle</h3>
+            <form id="productForm" onsubmit="saveProduct(event)" class="space-y-4">
+                <input type="text" name="name" placeholder="Ürün Adı" class="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition" required>
+                <textarea name="description" placeholder="Açıklama" class="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition h-24 resize-none"></textarea>
+                <div class="grid grid-cols-2 gap-4">
+                    <input type="number" name="price" placeholder="Fiyat (TL)" step="0.01" class="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition" required>
+                    <select name="category_id" id="categorySelect" class="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition" required></select>
                 </div>
-
-                <div class="flex justify-end gap-2">
-                    <button type="button" onclick="closeProductModal()" class="bg-gray-300 px-4 py-2 rounded">İptal</button>
-                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Kaydet</button>
-                </div>
+                <div class="border border-dashed border-gray-300 p-4 rounded-xl text-center hover:bg-gray-50 transition cursor-pointer relative"><input type="file" id="productImage" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full"><div class="text-gray-500 text-sm pointer-events-none"><i class="fas fa-cloud-upload-alt text-2xl mb-2 text-blue-400"></i><br>Resim Seçmek İçin Tıkla</div></div>
+                <div class="flex justify-end gap-3 pt-4"><button type="button" onclick="closeProductModal()" class="px-5 py-2.5 rounded-xl text-gray-600 hover:bg-gray-100 font-medium transition">İptal</button><button type="submit" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl hover:bg-blue-700 font-bold shadow-lg shadow-blue-200 transition">Kaydet</button></div>
             </form>
         </div>
     </div>
+    
+    <audio id="bellSound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
 
     <script>
+        // --- BAŞLANGIÇ AYARLARI ---
         let authToken = localStorage.getItem('authToken');
         if(!authToken) window.location.href = '/login.html';
-
-        // API Headers Helper
         const getHeaders = () => ({ 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' });
+        let chartInstance = null;
 
         function showSection(id) {
             document.querySelectorAll('.section').forEach(el => el.classList.add('hidden'));
             document.getElementById(id + 'Section').classList.remove('hidden');
             document.getElementById('pageTitle').innerText = id.charAt(0).toUpperCase() + id.slice(1);
             
-            if(id === 'dashboard') loadStats();
+            document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active', 'bg-slate-800'));
+            const activeBtn = document.querySelector(`button[onclick="showSection('${id}')"]`);
+            if(activeBtn) activeBtn.classList.add('active', 'bg-slate-800');
+
+            if(id === 'dashboard') loadDashboard();
             if(id === 'products') loadProducts();
             if(id === 'categories') loadCategories();
             if(id === 'tables') loadTables();
             if(id === 'orders') loadOrders();
         }
 
-        function logout() {
-            localStorage.removeItem('authToken');
-            window.location.href = '/login.html';
-        }
+        function logout() { localStorage.removeItem('authToken'); window.location.href = '/login.html'; }
 
-        // --- DASHBOARD ---
-        async function loadStats() {
-            // Basit istatistikler (Gerçek API'ye bağlanabilir)
-            const pRes = await fetch('/api/products', {headers: getHeaders()});
-            const pData = await pRes.json();
-            document.getElementById('statProducts').innerText = pData.length || 0;
-
-            const tRes = await fetch('/api/tables', {headers: getHeaders()});
-            const tData = await tRes.json();
-            document.getElementById('statTables').innerText = tData.length || 0;
-        }
-
-        // --- PRODUCTS ---
-        async function loadProducts() {
-            const res = await fetch('/api/products', {headers: getHeaders()});
-            const data = await res.json();
-            const tbody = document.getElementById('productsTable');
-            tbody.innerHTML = '';
-            
-            data.forEach(p => {
-                tbody.innerHTML += `
-                    <tr class="border-b">
-                        <td class="p-3"><img src="${p.image_url || ''}" class="w-10 h-10 object-cover rounded bg-gray-200"></td>
-                        <td class="p-3 font-medium">${p.name}</td>
-                        <td class="p-3 text-gray-600">${p.category ? p.category.name : '-'}</td>
-                        <td class="p-3 text-green-600 font-bold">${p.price} ₺</td>
-                        <td class="p-3">
-                            <button onclick="deleteProduct(${p.id})" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        async function openProductModal() {
-            // Kategorileri yükle
-            const res = await fetch('/api/products/categories', {headers: getHeaders()});
-            const cats = await res.json();
-            const select = document.getElementById('categorySelect');
-            select.innerHTML = '<option value="">Kategori Seçin</option>';
-            cats.forEach(c => select.innerHTML += `<option value="${c.id}">${c.name}</option>`);
-            
-            document.getElementById('productModal').classList.remove('hidden');
-        }
-
-        function closeProductModal() {
-            document.getElementById('productModal').classList.add('hidden');
-        }
-
-        async function saveProduct(e) {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const productData = {
-                name: formData.get('name'),
-                description: formData.get('description'),
-                price: parseFloat(formData.get('price')),
-                category_id: parseInt(formData.get('category_id')),
-                is_active: true
-            };
-
+        // --- DASHBOARD VE GRAFİKLER ---
+        async function loadDashboard() {
             try {
-                // 1. Ürünü Oluştur
-                const res = await fetch('/api/products', {
-                    method: 'POST',
-                    headers: getHeaders(),
-                    body: JSON.stringify(productData)
-                });
+                const res = await fetch('/api/admin/dashboard', {headers: getHeaders()});
+                const data = await res.json();
                 
-                if(!res.ok) throw new Error('Ürün oluşturulamadı');
-                const newProduct = await res.json();
-
-                // 2. Resim Varsa Yükle
-                const imageFile = document.getElementById('productImage').files[0];
-                if(imageFile) {
-                    const imgData = new FormData();
-                    imgData.append('file', imageFile);
-                    
-                    await fetch(`/api/products/${newProduct.id}/image`, {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${authToken}` }, // Content-Type otomatik
-                        body: imgData
-                    });
-                }
-
-                closeProductModal();
-                loadProducts();
-                alert('Ürün başarıyla eklendi!');
-            } catch(err) {
-                alert('Hata: ' + err.message);
-            }
+                document.getElementById('statProducts').innerText = data.overview.total_products;
+                document.getElementById('statRevenue').innerText = data.sales.today_revenue.toFixed(2) + ' ₺';
+                document.getElementById('statTodayOrders').innerText = data.sales.today_orders;
+                document.getElementById('statActiveOrders').innerText = data.sales.active_orders;
+                
+                const ctx = document.getElementById('salesChart').getContext('2d');
+                if(chartInstance) chartInstance.destroy();
+                
+                chartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.sales.daily_trend.map(d => new Date(d.date).toLocaleDateString('tr-TR', {day:'numeric', month:'short'})),
+                        datasets: [{
+                            label: 'Günlük Ciro (TL)',
+                            data: data.sales.daily_trend.map(d => d.revenue),
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 3,
+                            pointBackgroundColor: '#ffffff',
+                            pointBorderColor: '#10b981',
+                            pointRadius: 5,
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true, grid: { borderDash: [5, 5] } }, x: { grid: { display: false } } }
+                    }
+                });
+            } catch(e) { console.error(e); }
         }
 
-        async function deleteProduct(id) {
-            if(!confirm('Silmek istediğinize emin misiniz?')) return;
-            await fetch(`/api/products/${id}`, {method: 'DELETE', headers: getHeaders()});
-            loadProducts();
-        }
-
-        // --- CATEGORIES ---
-        async function loadCategories() {
-            const res = await fetch('/api/products/categories', {headers: getHeaders()});
-            const data = await res.json();
-            const tbody = document.getElementById('categoriesTable');
-            tbody.innerHTML = '';
-            data.forEach(c => {
-                tbody.innerHTML += `
-                    <tr class="border-b">
-                        <td class="p-3 text-2xl">${c.icon || ''}</td>
-                        <td class="p-3 font-medium">${c.name}</td>
-                        <td class="p-3 text-gray-600">${c.order}</td>
-                        <td class="p-3"><button onclick="deleteCategory(${c.id})" class="text-red-500"><i class="fas fa-trash"></i></button></td>
-                    </tr>
-                `;
-            });
-        }
-
-        async function addCategory() {
-            const name = prompt("Kategori Adı:");
-            if(!name) return;
-            const icon = prompt("İkon (Emoji):", "🍔");
-            
-            await fetch('/api/products/categories', {
-                method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify({name, icon, order: 1})
-            });
-            loadCategories();
-        }
-
-        async function deleteCategory(id) {
-            if(!confirm('Silmek istediğinize emin misiniz?')) return;
-            await fetch(`/api/products/categories/${id}`, {method: 'DELETE', headers: getHeaders()});
-            loadCategories();
-        }
-
-        // --- TABLES ---
-        async function loadTables() {
-            const res = await fetch('/api/tables', {headers: getHeaders()});
-            const data = await res.json();
-            const tbody = document.getElementById('tablesTable');
-            tbody.innerHTML = '';
-            data.forEach(t => {
-                tbody.innerHTML += `
-                    <tr class="border-b">
-                        <td class="p-3">${t.name}</td>
-                        <td class="p-3 font-bold text-blue-600">${t.number}</td>
-                        <td class="p-3"><button onclick="showQR(${t.id})" class="text-blue-500 underline">QR Göster</button></td>
-                        <td class="p-3"><button onclick="deleteTable(${t.id})" class="text-red-500"><i class="fas fa-trash"></i></button></td>
-                    </tr>
-                `;
-            });
-        }
-
-        async function addTable() {
-            const name = prompt("Masa Adı (Örn: Bahçe 1):");
-            if(!name) return;
-            const num = prompt("Masa No:");
-            if(!num) return;
-
-            await fetch('/api/tables', {
-                method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify({name, number: parseInt(num)})
-            });
-            loadTables();
-        }
-
-        async function showQR(id) {
-            const res = await fetch(`/api/tables/${id}/qr`, {headers: getHeaders()});
-            const data = await res.json();
-            const win = window.open("", "_blank");
-            win.document.write(`<div style="text-align:center; margin-top:50px;"><h1>${data.table_name}</h1><img src="${data.qr_url}" width="300"/><br><button onclick="window.print()">YAZDIR</button></div>`);
-        }
-        
-        async function deleteTable(id) {
-            if(!confirm('Silmek istediğinize emin misiniz?')) return;
-            await fetch(`/api/tables/${id}`, {method: 'DELETE', headers: getHeaders()});
-            loadTables();
-        }
-        
-        // --- ORDERS ---
+        // --- SİPARİŞ YÖNETİMİ ---
         async function loadOrders() {
-            const res = await fetch('/api/orders', {headers: getHeaders()});
+            const res = await fetch('/api/orders', {headers: getHeaders()}); 
             const data = await res.json();
             const tbody = document.getElementById('ordersTable');
             tbody.innerHTML = '';
+
             data.forEach(o => {
-                let statusColor = 'text-gray-600';
-                if(o.status === 'hazir') statusColor = 'text-green-600';
-                if(o.status === 'bekliyor') statusColor = 'text-red-600';
+                let statusClass = 'bg-gray-100 text-gray-600';
+                let statusText = o.status.toUpperCase();
+                
+                if(o.status === 'ready') { statusClass = 'bg-green-100 text-green-700'; statusText = 'HAZIR'; }
+                else if(o.status === 'preparing') { statusClass = 'bg-orange-100 text-orange-700'; statusText = 'HAZIRLANIYOR'; }
+                else if(o.status === 'pending') { statusClass = 'bg-red-100 text-red-700'; statusText = 'BEKLİYOR'; }
+                else if(o.status === 'delivered') { statusClass = 'bg-blue-100 text-blue-700'; statusText = 'TESLİM EDİLDİ'; }
+                else if(o.status === 'cancelled') { statusClass = 'bg-slate-200 text-slate-500 line-through'; statusText = 'İPTAL'; }
 
                 tbody.innerHTML += `
-                    <tr class="border-b">
-                        <td class="p-3">#${o.id}</td>
-                        <td class="p-3 font-bold">${o.table_name}</td>
-                        <td class="p-3">${o.total_amount} ₺</td>
-                        <td class="p-3 font-bold ${statusColor}">${o.status.toUpperCase()}</td>
-                        <td class="p-3 text-sm text-gray-500">${new Date(o.created_at).toLocaleString()}</td>
-                    </tr>
-                `;
+                <tr class="border-b hover:bg-gray-50 transition">
+                    <td class="p-4 font-mono text-sm">#${o.id}</td>
+                    <td class="p-4 font-bold text-gray-800">${o.table_name}</td>
+                    <td class="p-4 font-bold text-slate-700">${o.total_amount} ₺</td>
+                    <td class="p-4"><span class="px-3 py-1 rounded-full text-xs font-bold ${statusClass}">${statusText}</span></td>
+                    <td class="p-4 text-sm text-gray-500">${new Date(o.created_at).toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'})}</td>
+                    <td class="p-4 text-center">
+                        ${o.status !== 'cancelled' ? 
+                        `<button onclick="cancelOrder(${o.id})" class="text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1 rounded transition text-sm font-bold border border-red-200">
+                            <i class="fas fa-ban mr-1"></i> İptal
+                        </button>` : 
+                        '<span class="text-xs text-gray-400">İşlem Yok</span>'}
+                    </td>
+                </tr>`;
             });
         }
+        
+        async function cancelOrder(id) {
+            if(!confirm('Bu siparişi iptal etmek istediğinize emin misiniz?')) return;
+            await fetch(`/api/orders/${id}/status`, { method:'PUT', headers: getHeaders(), body: JSON.stringify({status:'cancelled'}) });
+            loadOrders(); 
+            loadDashboard();
+        }
 
-        // İlk Yükleme
+        // --- ÜRÜN İŞLEMLERİ ---
+        async function loadProducts() {
+            const res = await fetch('/api/products'); 
+            const data = await res.json(); 
+            document.getElementById('productsTable').innerHTML = data.map(p => `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="p-4"><img src="${p.image_url}" class="w-12 h-12 rounded-lg object-cover border border-gray-200"></td>
+                    <td class="p-4 font-medium text-gray-800">${p.name}</td>
+                    <td class="p-4 text-gray-500">${p.category?.name || '-'}</td>
+                    <td class="p-4 font-bold text-green-600">${p.price} ₺</td>
+                    <td class="p-4 text-center">
+                        <button onclick="deleteProduct(${p.id})" class="w-8 h-8 rounded-full text-red-500 hover:bg-red-50 transition"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>`).join('');
+        }
+        
+        async function openProductModal() {
+            const res = await fetch('/api/products/categories'); 
+            const cats = await res.json(); 
+            document.getElementById('categorySelect').innerHTML = '<option value="">Kategori Seçiniz</option>' + cats.map(c => `<option value="${c.id}">${c.name}</option>`).join(''); 
+            document.getElementById('productModal').classList.remove('hidden');
+        }
+        function closeProductModal() { document.getElementById('productModal').classList.add('hidden'); }
+        
+        async function saveProduct(e) {
+            e.preventDefault(); 
+            const fd = new FormData(e.target); 
+            const d = { name: fd.get('name'), description: fd.get('description'), price: parseFloat(fd.get('price')), category_id: parseInt(fd.get('category_id')), is_active: true, is_featured: false }; 
+            try {
+                const r = await fetch('/api/products', {method:'POST', headers: getHeaders(), body: JSON.stringify(d)}); 
+                if(r.ok){ 
+                    const np=await r.json(); 
+                    const im=document.getElementById('productImage').files[0]; 
+                    if(im){
+                        const formD=new FormData(); formD.append('file',im); 
+                        await fetch(`/api/products/${np.id}/image`, {method:'POST', headers:{'Authorization':`Bearer ${authToken}`}, body:formD});
+                    } 
+                    closeProductModal(); loadProducts(); alert('Ürün başarıyla eklendi!'); 
+                } else { alert('Ürün eklenirken hata oluştu.'); }
+            } catch(e) { alert("Bağlantı hatası: " + e.message); }
+        }
+        async function deleteProduct(id) { if(confirm('Silmek istediğinize emin misiniz?')) { await fetch(`/api/products/${id}`, {method:'DELETE', headers: getHeaders()}); loadProducts(); } }
+
+        // --- KATEGORİLER ---
+        async function loadCategories() {
+            const res = await fetch('/api/products/categories'); 
+            const data = await res.json(); 
+            document.getElementById('categoriesTable').innerHTML = data.map(c => `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="p-4 text-2xl">${c.icon}</td>
+                    <td class="p-4 font-medium text-gray-800">${c.name}</td>
+                    <td class="p-4 text-center"><button onclick="deleteCategory(${c.id})" class="w-8 h-8 rounded-full text-red-500 hover:bg-red-50 transition"><i class="fas fa-trash"></i></button></td>
+                </tr>`).join('');
+        }
+        async function addCategory() {
+            const n = prompt("Kategori Adı:"); if(!n) return; 
+            const i = prompt("Kategori İkonu (Emoji):", "🍔"); 
+            await fetch('/api/products/categories', {method:'POST', headers: getHeaders(), body: JSON.stringify({name:n, icon:i, order:1})}); 
+            loadCategories();
+        }
+        async function deleteCategory(id) { if(confirm('Silinsin mi?')) { await fetch(`/api/products/categories/${id}`, {method:'DELETE', headers: getHeaders()}); loadCategories(); } }
+
+        // --- MASALAR ---
+        async function loadTables() {
+            const res = await fetch('/api/tables', {headers: getHeaders()}); 
+            const data = await res.json(); 
+            document.getElementById('tablesTable').innerHTML = data.map(t => `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="p-4 font-medium text-gray-800">${t.name}</td>
+                    <td class="p-4 font-bold text-blue-600">${t.number}</td>
+                    <td class="p-4 text-center flex justify-center gap-2">
+                        <button onclick="showQR(${t.id})" class="px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition text-sm font-bold">QR KOD</button>
+                        <button onclick="deleteTable(${t.id})" class="px-3 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition text-sm"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>`).join('');
+        }
+        async function addTable() {
+            const n = prompt("Masa Adı:"); if(!n) return; 
+            const nm = prompt("Masa No:"); 
+            await fetch('/api/tables', {method:'POST', headers: getHeaders(), body: JSON.stringify({name:n, number:parseInt(nm)})}); 
+            loadTables();
+        }
+        async function showQR(id) {
+            const r = await fetch(`/api/tables/${id}/qr`, {headers: getHeaders()}); const d = await r.json();
+            const w = window.open("","_blank"); w.document.write(`<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; font-family:sans-serif;"><h1>${d.table_name}</h1><img src="${d.qr_url}" style="width:300px; height:300px; border:10px solid black; padding:10px;"/><p style="font-size:1.5rem; margin-top:20px;">Masa No: ${d.table_number}</p><button onclick="window.print()" style="margin-top:30px; padding:15px 40px; font-size:1.2rem; background:black; color:white; border:none; cursor:pointer; border-radius:10px;">YAZDIR</button></div>`);
+        }
+        async function deleteTable(id) { if(confirm('Silinsin mi?')) { await fetch(`/api/tables/${id}`, {method:'DELETE', headers: getHeaders()}); loadTables(); } }
+
+        // --- WEBSOCKET & GARSON BİLDİRİMİ ---
+        function connectWS() {
+            const ws = new WebSocket(`ws://${location.host}/ws`);
+            ws.onopen=()=>ws.send(JSON.stringify({type:'register', client_type:'admin'}));
+            ws.onmessage=(e)=>{ 
+                try {
+                    const m=JSON.parse(e.data); 
+                    if(m.type==='waiter_call') {
+                        document.getElementById('bellSound').play().catch(e=>console.log(e));
+                        if(Notification.permission === "granted") new Notification(m.message);
+                        else alert(m.message);
+                    }
+                    else if(m.type.includes('order')) { // Sipariş veya durum değişimi
+                        if(!document.getElementById('dashboardSection').classList.contains('hidden')) loadDashboard();
+                        if(!document.getElementById('ordersSection').classList.contains('hidden')) loadOrders();
+                    }
+                } catch(x){} 
+            };
+            ws.onclose=()=>setTimeout(connectWS, 3000);
+        }
+        
+        if(Notification.permission !== "denied") Notification.requestPermission();
         showSection('dashboard');
-        loadStats();
+        connectWS();
     </script>
 </body>
 </html>

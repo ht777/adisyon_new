@@ -3,11 +3,12 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depe
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from models import create_tables
+from models import create_tables, User, UserRole # User ve Role eklendi
 from pathlib import Path
 from routers import products_new as products, orders, admin, auth, tables
 from sqlalchemy.orm import Session
 from models import get_session
+from auth import get_password_hash # Şifreleme fonksiyonu eklendi
 import json
 import asyncio
 from typing import List, Dict, Any
@@ -51,8 +52,33 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"IP setup check skipped: {e}")
 
+    # 1. Tabloları Oluştur
     create_tables()
     logger.info("Database tables created/verified")
+
+    # 2. OTOMATİK ADMIN OLUŞTURMA (EKSİK OLAN KISIM BUYDU)
+    db = next(get_session())
+    try:
+        admin_user = db.query(User).filter(User.username == "admin").first()
+        if not admin_user:
+            logger.info("⚠️ Admin kullanıcısı bulunamadı. Otomatik oluşturuluyor...")
+            new_admin = User(
+                username="admin",
+                email="admin@restoran.com",
+                password_hash=get_password_hash("admin123"), # Şifre: admin123
+                role=UserRole.ADMIN,
+                is_active=True
+            )
+            db.add(new_admin)
+            db.commit()
+            logger.info("✅ Varsayılan admin oluşturuldu: admin / admin123")
+        else:
+            logger.info("✅ Admin kullanıcısı mevcut.")
+    except Exception as e:
+        logger.error(f"Admin oluşturma hatası: {e}")
+    finally:
+        db.close()
+
     yield
     logger.info("Shutting down Restaurant Order System...")
 
@@ -114,7 +140,6 @@ class ConnectionManager:
         self.admin_connections: List[WebSocket] = []
 
     async def connect(self, websocket: WebSocket, client_type: str = "customer"):
-        # accept() main'de yapıldığı için buradan kaldırıldı
         self.active_connections.append(websocket)
         if client_type == "kitchen":
             self.kitchen_connections.append(websocket)
@@ -149,29 +174,23 @@ set_connection_manager(manager)
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    # ÖNCE BAĞLANTIYI KABUL ET
     await websocket.accept()
     
     client_type = "customer"
     try:
-        # İstemcinin ilk mesajını bekle (kimlik bildirimi)
         initial_data = await websocket.receive_text()
         try:
             msg = json.loads(initial_data)
             if msg.get("type") == "register":
                 client_type = msg.get("client_type", "customer")
             
-            # Manager'a kaydet (accept zaten yapıldı)
             await manager.connect(websocket, client_type)
             
         except json.JSONDecodeError:
-            # JSON değilse varsayılan olarak kaydet
             await manager.connect(websocket, client_type)
 
-        # Mesaj döngüsü
         while True:
             data = await websocket.receive_text()
-            # Gelen diğer mesajları burada işleyebiliriz
             
     except WebSocketDisconnect:
         manager.disconnect(websocket, client_type)
