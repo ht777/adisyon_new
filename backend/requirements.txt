@@ -37,3 +37,5 @@ aiofiles==23.2.1
 
 # Environment validation
 pydantic-settings==2.2.1
+
+passlib[bcrypt]

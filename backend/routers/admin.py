@@ -11,7 +11,7 @@ import os
 import shutil
 import logging
 
-# Hata ayıklama için logger
+# Logger ayarla
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("admin_reports")
 
@@ -33,31 +33,22 @@ def safe_parse_date(date_val):
     if not date_val:
         return None
     
-    # Zaten datetime objesiyse direkt döndür
     if isinstance(date_val, datetime):
         return date_val
     
-    # String ise parse etmeyi dene
     if isinstance(date_val, str):
         try:
-            # 1. Format: ISO (2023-11-20T14:30:00)
             return datetime.fromisoformat(date_val)
         except:
             pass
-        
         try:
-            # 2. Format: SQL Standart (2023-11-20 14:30:00.000000)
             return datetime.strptime(date_val, "%Y-%m-%d %H:%M:%S.%f")
         except:
             pass
-
         try:
-            # 3. Format: Saniyesiz (2023-11-20 14:30:00)
             return datetime.strptime(date_val, "%Y-%m-%d %H:%M:%S")
         except:
             pass
-
-    # Hiçbiri olmazsa None dön (Bu veri bozuktur)
     return None
 
 # --- ENDPOINTLER ---
@@ -67,7 +58,6 @@ async def get_dashboard_stats(
     current_user = Depends(require_role([UserRole.ADMIN, UserRole.SUPERVISOR])),
     db: Session = Depends(get_session)
 ):
-    # Tüm siparişleri çek ve Python tarafında işle (En güvenli yöntem)
     all_orders = db.query(Order).all()
     
     total_products = db.query(Product).filter(Product.is_active == True).count()
@@ -78,7 +68,6 @@ async def get_dashboard_stats(
     today_revenue = 0.0
     active_orders = 0
     
-    # Grafik için son 7 günü hazırla
     daily_revenue = {} 
     for i in range(6, -1, -1):
         d = (today - timedelta(days=i)).isoformat()
@@ -86,17 +75,15 @@ async def get_dashboard_stats(
 
     for o in all_orders:
         o_dt = safe_parse_date(o.created_at)
-        if not o_dt: continue # Tarihi bozuk siparişi atla
+        if not o_dt: continue
         
         o_date = o_dt.date()
         o_date_str = o_date.isoformat()
         
-        # Sipariş durumu kontrolü (Büyük/küçük harf duyarsız)
         status = str(o.status).lower() if o.status else ""
         is_cancelled = status in ["cancelled", "iptal"]
         is_active = status in ["pending", "preparing", "bekliyor", "hazirlaniyor"]
         
-        # Bugünün verileri
         if o_date == today:
             today_order_count += 1
             if not is_cancelled:
@@ -105,9 +92,10 @@ async def get_dashboard_stats(
         if is_active:
             active_orders += 1
             
-        # Grafik verisi (İptal olmayanlar)
         if o_date_str in daily_revenue and not is_cancelled:
             daily_revenue[o_date_str] += (o.total_amount or 0.0)
+
+    daily_trend = [{"date": k, "revenue": v} for k, v in daily_revenue.items()]
 
     return {
         "overview": {
@@ -118,7 +106,7 @@ async def get_dashboard_stats(
             "today_orders": today_order_count,
             "today_revenue": today_revenue,
             "active_orders": active_orders,
-            "daily_trend": [{"date": k, "revenue": v} for k, v in daily_revenue.items()]
+            "daily_trend": daily_trend
         }
     }
 
@@ -129,15 +117,14 @@ async def get_sales_report(
     current_user = Depends(require_role([UserRole.ADMIN])),
     db: Session = Depends(get_session)
 ):
-    # Tarih seçilmediyse varsayılan ata
     if not start_date: start_date = date.today() - timedelta(days=30)
     if not end_date: end_date = date.today()
     
-    # DEBUG: Konsola bilgi bas
-    print(f"📊 RAPOR İSTEĞİ: {start_date} - {end_date}")
+    # EMOJİSİZ PRINT (HATA VERMEYECEK)
+    print(f"[INFO] Rapor Istegi: {start_date} - {end_date}")
     
     all_orders = db.query(Order).all()
-    print(f"🗄️  Veritabanındaki Toplam Sipariş: {len(all_orders)}")
+    print(f"[INFO] Veritabanindaki Toplam Siparis: {len(all_orders)}")
 
     filtered_orders = []
     total_revenue = 0.0
@@ -152,7 +139,6 @@ async def get_sales_report(
     processed_count = 0
 
     for o in all_orders:
-        # Tarihi güvenli parse et
         o_dt = safe_parse_date(o.created_at)
         
         if not o_dt: 
@@ -160,11 +146,9 @@ async def get_sales_report(
             
         o_date = o_dt.date()
         
-        # Tarih aralığı kontrolü
         if start_date <= o_date <= end_date:
             processed_count += 1
             
-            # İptal kontrolü
             status = str(o.status).lower() if o.status else ""
             if status in ["cancelled", "iptal"]:
                 continue
@@ -173,13 +157,11 @@ async def get_sales_report(
             amount = o.total_amount or 0.0
             total_revenue += amount
             
-            # Günlük kırılım
             d_str = o_date.isoformat()
             if d_str in breakdown:
                 breakdown[d_str]["revenue"] += amount
                 breakdown[d_str]["count"] += 1
             
-            # Ürün istatistikleri
             for item in o.items:
                 if not item.product: continue
                 pid = item.product_id
@@ -189,9 +171,10 @@ async def get_sales_report(
                 product_stats[pid]["qty"] += item.quantity
                 product_stats[pid]["total"] += (item.subtotal or 0.0)
 
-    print(f"✅ Tarih Aralığına Giren Sipariş: {processed_count}")
-    print(f"💰 Rapora Dahil Edilen (İptal Olmayan): {len(filtered_orders)}")
-    print(f"💵 Toplam Ciro: {total_revenue}")
+    # EMOJİSİZ PRINTLER
+    print(f"[OK] Tarih Araligina Giren: {processed_count}")
+    print(f"[OK] Rapora Dahil Edilen: {len(filtered_orders)}")
+    print(f"[OK] Toplam Ciro: {total_revenue}")
 
     top_products = sorted(product_stats.values(), key=lambda x: x["total"], reverse=True)[:10]
     daily_data = [{"date": k, **v} for k, v in sorted(breakdown.items())]
@@ -247,8 +230,15 @@ async def upload_restaurant_logo(
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Sadece resim dosyası yüklenebilir.")
     
-    BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    UPLOAD_DIR = os.path.join(BASE_DIR, "frontend", "static", "uploads")
+    # Exe uyumlu yol
+    import sys
+    if getattr(sys, 'frozen', False):
+        base_dir = os.path.dirname(sys.executable)
+        UPLOAD_DIR = os.path.join(base_dir, "frontend", "static", "uploads")
+    else:
+        BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        UPLOAD_DIR = os.path.join(BASE_DIR, "frontend", "static", "uploads")
+
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     
     file_extension = file.filename.split(".")[-1] if "." in file.filename else "png"
