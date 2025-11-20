@@ -32,9 +32,17 @@ CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost
 DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
-# Statik dosyaların yolu
-BASE_DIR = Path(__file__).resolve().parent
-STATIC_DIR = BASE_DIR.parent / "frontend" / "static"
+import sys
+
+# Statik dosyaların yolu (EXE uyumlu)
+if getattr(sys, 'frozen', False):
+    # Eğer .exe olarak çalışıyorsa
+    BASE_DIR = Path(sys.executable).parent
+    STATIC_DIR = BASE_DIR / "frontend" / "static"
+else:
+    # Normal python olarak çalışıyorsa
+    BASE_DIR = Path(__file__).resolve().parent
+    STATIC_DIR = BASE_DIR.parent / "frontend" / "static"
 
 try:
     from network_utils import set_static_ip

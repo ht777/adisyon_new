@@ -1,0 +1,21 @@
+# Sanal Ortamlar (Gereksiz kütüphane dosyaları)
+venv/
+.venv/
+env/
+
+# Python Önbellekleri (Gereksiz hızlandırıcı dosyalar)
+__pycache__/
+*.pyc
+
+# Paketleme Çıktıları (Oluşturduğun exe ve geçici dosyalar)
+backend/dist/
+backend/build/
+*.spec
+
+# Veritabanı (Müşteri verisi içerebilir, yükleme)
+*.db
+*.sqlite3
+
+# Gizli Ayarlar (Şifreler vs.)
+.env
+.env.*
