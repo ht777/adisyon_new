@@ -20,6 +20,13 @@ class OrderStatus(str, enum.Enum):
     TESLIM_EDILDI = "delivered"
     IPTAL = "cancelled"
 
+class MovementType(str, enum.Enum):
+    GIRIS = "giris"
+    SATIS = "satis"
+    IPTAL = "iptal"
+    ZAYI = "zayi"
+    DUZELTME = "duzeltme"
+
 # --- TABLO MODELLERİ ---
 # DİKKAT: datetime.utcnow YERİNE datetime.now KULLANILDI
 
@@ -58,6 +65,7 @@ class Product(Base):
     track_stock = Column(Boolean, default=False)
     category = relationship("Category", back_populates="products")
     extra_groups = relationship("ProductExtraGroup", back_populates="product")
+    stock_movements = relationship("StockMovement", back_populates="product")
 
 class ExtraGroup(Base):
     __tablename__ = "extra_groups"
@@ -154,6 +162,16 @@ class Inventory(Base):
     product_id = Column(Integer, ForeignKey("products.id"), unique=True)
     quantity = Column(Integer, default=0)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+class StockMovement(Base):
+    __tablename__ = "stock_movements"
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    product_id = Column(Integer, ForeignKey("products.id"))
+    quantity = Column(Integer, nullable=False)
+    movement_type = Column(Enum(MovementType), default=MovementType.GIRIS)
+    description = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.now)
+    product = relationship("Product", back_populates="stock_movements")
 # Database setup
 def get_engine():
     return create_engine("sqlite:///./restaurant.db", connect_args={"check_same_thread": False})

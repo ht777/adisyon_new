@@ -6,6 +6,7 @@ from auth import require_role, get_current_active_user, optional_current_user
 from models import UserRole
 from datetime import datetime
 from websocket_utils import broadcast_order_update, broadcast_to_admin
+from models import StockMovement, MovementType
 from pydantic import BaseModel
 import logging
 
@@ -132,6 +133,7 @@ async def create_order(order: OrderCreate, db: Session = Depends(get_session)):
             if int(product.stock or 0) < int(item_data.quantity or 0):
                 raise HTTPException(status_code=400, detail=f"Yetersiz stok: {product.name} (Kalan: {int(product.stock or 0)})")
             product.stock = int(product.stock or 0) - int(item_data.quantity or 0)
+            db.add(StockMovement(product_id=product.id, quantity=-int(item_data.quantity or 0), movement_type=MovementType.SATIS, description=f"Sipariş #{new_order.id} - Masa {table.number}"))
             if int(product.stock or 0) <= 15:
                 await broadcast_to_admin({"type": "stock_warning", "message": f"Dikkat: {product.name} stoğu azaldı! Kalan: {int(product.stock or 0)}"})
         subtotal = product.price * item_data.quantity

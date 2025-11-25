@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from models import Product, Category, ExtraGroup, ExtraItem, ProductExtraGroup, get_session
 from auth import require_role, get_current_active_user
-from models import UserRole
+from models import UserRole, StockMovement, MovementType
 import os
 import sys
 from pathlib import Path
@@ -205,7 +205,13 @@ async def get_product(product_id: int, db: Session = Depends(get_session)):
 async def update_product(product_id: int, product_update: ProductCreate, current_user = Depends(require_role([UserRole.ADMIN])), db: Session = Depends(get_session)):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product: raise HTTPException(status_code=404, detail="Ürün bulunamadı")
+    old_stock = int(product.stock or 0)
     for key, value in product_update.dict().items(): setattr(product, key, value)
+    new_stock_val = int(product.stock or 0)
+    if bool(product.track_stock or False) and new_stock_val != old_stock:
+        diff = new_stock_val - old_stock
+        movement_type = MovementType.GIRIS if diff > 0 else MovementType.DUZELTME
+        db.add(StockMovement(product_id=product.id, quantity=diff, movement_type=movement_type, description="Admin Manuel Güncelleme"))
     db.commit()
     db.refresh(product)
     return product

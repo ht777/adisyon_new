@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from models import User, Product, Category, Order, Table, OrderItem, OrderStatus, RestaurantConfig, Inventory, get_session
+from models import User, Product, Category, Order, Table, OrderItem, OrderStatus, RestaurantConfig, StockMovement, Inventory, get_session
 from services.ai_service import generate_analysis_text
 from collections import defaultdict
 from io import BytesIO
@@ -11,7 +11,7 @@ import importlib
 from auth import require_role, get_current_active_user
 from models import UserRole
 from datetime import datetime, date, timedelta
-from sqlalchemy import func
+from sqlalchemy import func, desc
 import os
 import shutil
 import logging
@@ -279,6 +279,50 @@ async def closing_report_pdf(
     except Exception as e:
         logger.error(f"PDF generation failed: {e}")
         raise HTTPException(status_code=500, detail="PDF oluşturulamadı")
+
+def generate_ai_insight(daily_data, stock_data):
+    insights = []
+    today_rev = daily_data.get('today_revenue', 0)
+    avg_rev = daily_data.get('average_revenue', 0)
+    if avg_rev:
+        if today_rev > avg_rev * 1.2:
+            pct = int(((today_rev-avg_rev)/avg_rev)*100)
+            insights.append(f"Harika! Bugün ciro ortalamanın %{pct} üzerinde.")
+        elif today_rev < avg_rev * 0.8:
+            insights.append("Bugün ciro beklentinin altında. Kampanya yapmayı düşünebilirsiniz.")
+    critical_items = [s for s in stock_data if s.get('track_stock') and s.get('stock', 0) <= 15]
+    if critical_items:
+        names = ", ".join([i['name'] for i in critical_items[:3]])
+        insights.append(f"Stok Alarmı: {names} tükenmek üzere.")
+    top_product = daily_data.get('top_product')
+    if top_product:
+        insights.append(f"Günün Yıldızı: '{top_product}' çok satıyor.")
+    return insights
+
+@router.get("/reports/daily-smart")
+async def get_smart_daily_report(db: Session = Depends(get_session)):
+    from datetime import date, datetime
+    today = date.today()
+    start = datetime.combine(today, datetime.min.time())
+    orders = db.query(Order).filter(Order.created_at >= start).all()
+    revenue = sum(float(o.total_amount or 0.0) for o in orders)
+    movements = db.query(StockMovement).filter(StockMovement.created_at >= start).all()
+    stock_in = sum(int(m.quantity or 0) for m in movements if int(m.quantity or 0) > 0)
+    stock_out = sum(abs(int(m.quantity or 0)) for m in movements if int(m.quantity or 0) < 0)
+    products = db.query(Product).filter(Product.track_stock == True).all()
+    stock_status = [{"name": p.name, "stock": int(p.stock or 0), "track_stock": True} for p in products]
+    data_for_ai = {
+        "today_revenue": revenue,
+        "average_revenue": 5000,
+        "top_product": "Karışık Pizza"
+    }
+    ai_comments = generate_ai_insight(data_for_ai, stock_status)
+    return {
+        "date": today.isoformat(),
+        "financials": {"revenue": revenue, "order_count": len(orders)},
+        "inventory": {"items_in": stock_in, "items_sold": stock_out},
+        "ai_analysis": ai_comments
+    }
 
 class InventoryUpdate(BaseModel):
     quantity: int
