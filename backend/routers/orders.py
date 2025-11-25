@@ -1,11 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
-from models import Order, OrderItem, OrderStatus, Table, Product, Inventory, get_session
+from models import Order, OrderItem, OrderStatus, Table, Product, get_session
 from auth import require_role, get_current_active_user, optional_current_user
 from models import UserRole
 from datetime import datetime
-from websocket_utils import broadcast_order_update
+from websocket_utils import broadcast_order_update, broadcast_to_admin
 from pydantic import BaseModel
 import logging
 
@@ -128,9 +128,12 @@ async def create_order(order: OrderCreate, db: Session = Depends(get_session)):
     for item_data in order.items:
         product = db.query(Product).filter(Product.id == item_data.product_id).first()
         if not product: continue
-        inv = db.query(Inventory).filter(Inventory.product_id == item_data.product_id).first()
-        if inv and (inv.quantity or 0) < item_data.quantity:
-            raise HTTPException(status_code=400, detail=f"Yetersiz stok: Ürün ID {item_data.product_id}")
+        if bool(product.track_stock or False):
+            if int(product.stock or 0) < int(item_data.quantity or 0):
+                raise HTTPException(status_code=400, detail=f"Yetersiz stok: {product.name} (Kalan: {int(product.stock or 0)})")
+            product.stock = int(product.stock or 0) - int(item_data.quantity or 0)
+            if int(product.stock or 0) <= 15:
+                await broadcast_to_admin({"type": "stock_warning", "message": f"Dikkat: {product.name} stoğu azaldı! Kalan: {int(product.stock or 0)}"})
         subtotal = product.price * item_data.quantity
         total_amount += subtotal
         order_item = OrderItem(order_id=new_order.id, product_id=item_data.product_id, quantity=item_data.quantity, unit_price=product.price, extras=item_data.extras, subtotal=subtotal)
@@ -145,15 +148,6 @@ async def create_order(order: OrderCreate, db: Session = Depends(get_session)):
     
     new_order.total_amount = total_amount
     db.commit()
-    # Stok düş
-    try:
-        for item_data in order.items:
-            inv = db.query(Inventory).filter(Inventory.product_id == item_data.product_id).first()
-            if inv:
-                inv.quantity = max(0, int(inv.quantity or 0) - int(item_data.quantity or 0))
-        db.commit()
-    except Exception:
-        db.rollback()
     
     await broadcast_order_update({
         "id": new_order.id, "table_id": new_order.table_id, "table_name": table.name, "status": new_order.status,

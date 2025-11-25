@@ -53,7 +53,9 @@ class Product(Base):
     category_id = Column(Integer, ForeignKey("categories.id"))
     is_featured = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.now) # Değişti
+    created_at = Column(DateTime, default=datetime.now)
+    stock = Column(Integer, default=0)
+    track_stock = Column(Boolean, default=False)
     category = relationship("Category", back_populates="products")
     extra_groups = relationship("ProductExtraGroup", back_populates="product")
 

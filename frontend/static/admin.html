@@ -431,15 +431,15 @@
         async function loadStock(){
             showLoading();
             try{
-                const res = await fetch('/api/admin/inventory', {headers: getHeaders()});
+                const res = await fetch('/api/products', {headers: getHeaders()});
                 const data = await res.json();
                 const tbody = document.getElementById('stockTable');
-                tbody.innerHTML = (data||[]).map(row => `
+                tbody.innerHTML = (data||[]).map(p => `
                     <tr class="border-b hover:bg-gray-50 transition">
-                        <td class="p-4 font-medium text-gray-800">${row.name}</td>
-                        <td class="p-4 text-right font-mono">${row.quantity}</td>
-                        <td class="p-4 text-right"><input type="number" min="0" class="w-24 border p-2 rounded-lg text-right" id="stock-${row.product_id}" value="${row.quantity}"></td>
-                        <td class="p-4 text-center"><button onclick="saveStock(${row.product_id})" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Güncelle</button></td>
+                        <td class="p-4 font-medium text-gray-800">${p.name}</td>
+                        <td class="p-4 text-right font-mono">${p.track_stock ? p.stock : '∞'}</td>
+                        <td class="p-4 text-right">${p.track_stock ? `<input type=\"number\" min=\"0\" class=\"w-24 border p-2 rounded-lg text-right\" id=\"stock-${p.id}\" value=\"${p.stock}\">` : '<span class=\"text-xs text-gray-400\">Takip Kapalı</span>'}</td>
+                        <td class="p-4 text-center"><button onclick="${p.track_stock ? `saveStock(${p.id})` : `toggleTrack(${p.id}, true)`}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">${p.track_stock ? 'Güncelle' : 'Takibi Aç'}</button></td>
                     </tr>
                 `).join('');
             }catch(e){}finally{hideLoading();}
@@ -450,10 +450,18 @@
             try{
                 const input = document.getElementById('stock-' + productId);
                 const qty = parseInt(input.value||'0');
-                const res = await fetch('/api/admin/inventory/' + productId, {method:'PUT', headers: getHeaders(), body: JSON.stringify({quantity: qty})});
+                const res = await fetch('/api/products/' + productId, {method:'PUT', headers: getHeaders(), body: JSON.stringify({stock: qty})});
                 if(res.ok){ loadStock(); }
                 else{ alert('Güncelleme başarısız'); }
             }catch(e){ alert('İstek hatası'); }finally{ hideLoading(); }
+        }
+
+        async function toggleTrack(id, status){
+            showLoading();
+            try{
+                await fetch('/api/products/' + id, {method:'PUT', headers: getHeaders(), body: JSON.stringify({track_stock: status, stock: status ? 0 : 0})});
+                loadStock();
+            }catch(e){}finally{hideLoading();}
         }
 
         // --- DASHBOARD ---
@@ -552,6 +560,8 @@
                     if(m.type === 'waiter_call' || m.type === 'bill_request') {
                         document.getElementById('bellSound').play().catch(()=>{});
                         showToast(m.message, m.type === 'bill_request' ? 'purple' : 'orange');
+                    } else if(m.type === 'stock_warning') {
+                        showToast(m.message, 'red');
                     } else if(m.type && m.type.includes('order')) {
                         if(!document.getElementById('dashboardSection').classList.contains('hidden')) loadDashboard();
                         if(!document.getElementById('ordersSection').classList.contains('hidden')) loadOrders();
