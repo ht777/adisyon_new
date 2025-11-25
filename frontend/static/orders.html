@@ -178,7 +178,7 @@
         // Siparişleri Getir
         async function loadOrders() {
             try {
-                const res = await fetch('/api/orders/kitchen/pending');
+                const res = await fetch('/api/kitchen-tickets');
                 if(!res.ok) return;
                 const orders = await res.json();
                 render(orders);

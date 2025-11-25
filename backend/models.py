@@ -131,6 +131,27 @@ class RestaurantConfig(Base):
     wifi_password = Column(String, nullable=True)
     order_timeout_minutes = Column(Integer, default=30)
     logo_url = Column(String, nullable=True)
+
+class TableState(Base):
+    __tablename__ = "table_state"
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    table_id = Column(Integer, ForeignKey("tables.id"), unique=True)
+    is_occupied = Column(Boolean, default=False)
+    merged_with_table_id = Column(Integer, nullable=True)
+
+class UserStats(Base):
+    __tablename__ = "user_stats"
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True)
+    total_sales_score = Column(Float, default=0.0)
+    total_tips_collected = Column(Float, default=0.0)
+
+class Inventory(Base):
+    __tablename__ = "inventory"
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    product_id = Column(Integer, ForeignKey("products.id"), unique=True)
+    quantity = Column(Integer, default=0)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 # Database setup
 def get_engine():
     return create_engine("sqlite:///./restaurant.db", connect_args={"check_same_thread": False})

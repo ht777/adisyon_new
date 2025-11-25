@@ -19,6 +19,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 # Password hashing - Use pbkdf2_sha256 instead of bcrypt for Windows compatibility
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 security = HTTPBearer()
+security_optional = HTTPBearer(auto_error=False)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
@@ -83,3 +84,17 @@ def require_role(allowed_roles: list):
             )
         return current_user
     return role_checker
+
+def optional_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(security_optional), db: Session = Depends(get_session)):
+    try:
+        if not credentials:
+            return None
+        token = credentials.credentials
+        payload = verify_token(token)
+        username = payload.get("sub")
+        if not username:
+            return None
+        user = db.query(User).filter(User.username == username).first()
+        return user
+    except Exception:
+        return None

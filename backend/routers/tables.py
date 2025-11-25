@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from models import Table, get_session, Order
+from models import Table, get_session, Order, OrderStatus, TableState
 from auth import require_role, get_current_active_user
 from models import UserRole
 from websocket_utils import broadcast_to_admin 
@@ -248,3 +248,52 @@ async def call_waiter(
         return {"message": "Bildirim başarıyla gönderildi"}
     
     raise HTTPException(status_code=404, detail="Masa bulunamadı")
+
+@router.post("/transfer/{source_id}/{target_id}")
+async def transfer_table_orders(source_id: int, target_id: int, db: Session = Depends(get_session)):
+    source = db.query(Table).filter(Table.id == source_id).first()
+    target = db.query(Table).filter(Table.id == target_id).first()
+    if not source or not target:
+        raise HTTPException(status_code=404, detail="Masa bulunamadı")
+    active_orders = db.query(Order).filter(
+        Order.table_id == source_id,
+        Order.status.in_([OrderStatus.BEKLIYOR, OrderStatus.HAZIRLANIYOR])
+    ).all()
+    for o in active_orders:
+        o.table_id = target_id
+    db.commit()
+    s = db.query(TableState).filter(TableState.table_id == source_id).first()
+    if not s:
+        s = TableState(table_id=source_id, is_occupied=False)
+        db.add(s)
+    else:
+        s.is_occupied = False
+    t = db.query(TableState).filter(TableState.table_id == target_id).first()
+    if not t:
+        t = TableState(table_id=target_id, is_occupied=True)
+        db.add(t)
+    else:
+        t.is_occupied = True
+    db.commit()
+    return {"moved_orders": len(active_orders), "source_is_occupied": False, "target_is_occupied": True}
+
+@router.post("/merge/{source_id}/{target_id}")
+async def merge_tables(source_id: int, target_id: int, db: Session = Depends(get_session)):
+    source = db.query(Table).filter(Table.id == source_id).first()
+    target = db.query(Table).filter(Table.id == target_id).first()
+    if not source or not target:
+        raise HTTPException(status_code=404, detail="Masa bulunamadı")
+    s = db.query(TableState).filter(TableState.table_id == source_id).first()
+    if not s:
+        s = TableState(table_id=source_id, merged_with_table_id=target_id)
+        db.add(s)
+    else:
+        s.merged_with_table_id = target_id
+    t = db.query(TableState).filter(TableState.table_id == target_id).first()
+    if not t:
+        t = TableState(table_id=target_id, is_occupied=True)
+        db.add(t)
+    else:
+        t.is_occupied = True
+    db.commit()
+    return {"message": "Birleştirildi", "source_merged_with": target_id}

@@ -1,14 +1,16 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
-from models import Order, OrderItem, OrderStatus, Table, Product, get_session
-from auth import require_role, get_current_active_user
+from models import Order, OrderItem, OrderStatus, Table, Product, Inventory, get_session
+from auth import require_role, get_current_active_user, optional_current_user
 from models import UserRole
 from datetime import datetime
 from websocket_utils import broadcast_order_update
 from pydantic import BaseModel
+import logging
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
+logger = logging.getLogger("printer")
 
 # Pydantic models (Diğer fonksiyonlardan eksik kalanlar)
 class OrderItemCreate(BaseModel):
@@ -71,6 +73,41 @@ async def get_pending_orders_for_kitchen(db: Session = Depends(get_session)):
         })
     return result
 
+@router.get("/kitchen-tickets")
+async def get_kitchen_tickets(db: Session = Depends(get_session)):
+    orders = db.query(Order).filter(
+        Order.status.in_([OrderStatus.BEKLIYOR, OrderStatus.HAZIRLANIYOR])
+    ).order_by(Order.created_at.asc()).all()
+    result = []
+    for order in orders:
+        items = []
+        for item in order.items:
+            p_name = item.product.name if item.product else "Silinmiş Ürün"
+            items.append({
+                "id": item.id,
+                "product_id": item.product_id,
+                "product_name": p_name,
+                "quantity": item.quantity,
+                "extras": item.extras,
+                "subtotal": item.subtotal
+            })
+        table_name = order.table.name if order.table else "Masa Bilinmiyor"
+        result.append({
+            "id": order.id,
+            "table_name": table_name,
+            "status": order.status,
+            "customer_notes": order.customer_notes,
+            "created_at": order.created_at.isoformat(),
+            "items": items,
+            "total_amount": order.total_amount
+        })
+    return result
+
+@router.post("/printer/print-order/{order_id}")
+async def print_order_stub(order_id: int):
+    logger.info(f"Printing order #{order_id} to ESC/POS printer")
+    return {"message": f"Printing order #{order_id}"}
+
 @router.get("/stats")
 async def get_order_stats(db: Session = Depends(get_session)):
     return {"total_orders": db.query(Order).count()}
@@ -91,6 +128,9 @@ async def create_order(order: OrderCreate, db: Session = Depends(get_session)):
     for item_data in order.items:
         product = db.query(Product).filter(Product.id == item_data.product_id).first()
         if not product: continue
+        inv = db.query(Inventory).filter(Inventory.product_id == item_data.product_id).first()
+        if inv and (inv.quantity or 0) < item_data.quantity:
+            raise HTTPException(status_code=400, detail=f"Yetersiz stok: Ürün ID {item_data.product_id}")
         subtotal = product.price * item_data.quantity
         total_amount += subtotal
         order_item = OrderItem(order_id=new_order.id, product_id=item_data.product_id, quantity=item_data.quantity, unit_price=product.price, extras=item_data.extras, subtotal=subtotal)
@@ -105,6 +145,15 @@ async def create_order(order: OrderCreate, db: Session = Depends(get_session)):
     
     new_order.total_amount = total_amount
     db.commit()
+    # Stok düş
+    try:
+        for item_data in order.items:
+            inv = db.query(Inventory).filter(Inventory.product_id == item_data.product_id).first()
+            if inv:
+                inv.quantity = max(0, int(inv.quantity or 0) - int(item_data.quantity or 0))
+        db.commit()
+    except Exception:
+        db.rollback()
     
     await broadcast_order_update({
         "id": new_order.id, "table_id": new_order.table_id, "table_name": table.name, "status": new_order.status,
@@ -153,7 +202,8 @@ async def get_order(order_id: int, db: Session = Depends(get_session)):
 async def update_order_status(
     order_id: int,
     status_update: OrderStatusUpdate,
-    db: Session = Depends(get_session)
+    db: Session = Depends(get_session),
+    current_user = Depends(optional_current_user)
 ):
     # ÇEVİRİ SÖZLÜĞÜ: Türkçe/İngilizce ne gelirse gelsin doğruya çevirir
     status_map = {
@@ -174,6 +224,21 @@ async def update_order_status(
     
     order.status = new_status_enum
     db.commit()
+    try:
+        if new_status_enum == OrderStatus.TESLIM_EDILDI and current_user is not None:
+            from models import UserStats
+            stats = db.query(UserStats).filter(UserStats.user_id == current_user.id).first()
+            if not stats:
+                stats = UserStats(user_id=current_user.id)
+                db.add(stats)
+                db.flush()
+            amt = float(order.total_amount or 0.0)
+            tips = 0.0
+            stats.total_sales_score = float(stats.total_sales_score or 0.0) + amt
+            stats.total_tips_collected = float(stats.total_tips_collected or 0.0) + tips
+            db.commit()
+    except Exception:
+        pass
     
     table_name = order.table.name if order.table else "Masa Bilinmiyor"
     await broadcast_order_update({"id": order.id, "status": order.status, "table_name": table_name}, "order_updated")

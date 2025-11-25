@@ -118,3 +118,34 @@ async def get_users(
 ):
     users = db.query(User).all()
     return [{"id": u.id, "username": u.username, "email": u.email, "role": u.role, "is_active": u.is_active} for u in users]
+
+class PinLoginRequest(BaseModel):
+    username: str
+    pin: str
+
+class PinLoginResponse(BaseModel):
+    access_token: str
+    token_type: str
+    user: dict
+
+@router.post("/pin-login", response_model=PinLoginResponse)
+async def pin_login(request: PinLoginRequest, db: Session = Depends(get_session)):
+    user = db.query(User).filter(User.username == request.username).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or pin")
+    if len(request.pin) != 4:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="PIN must be 4 digits")
+    if not verify_password(request.pin, user.password_hash):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or pin")
+    access_token = create_access_token(data={"sub": user.username}, expires_delta=timedelta(minutes=30))
+    return PinLoginResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user={
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "role": user.role,
+            "is_active": user.is_active
+        }
+    )

@@ -2,7 +2,12 @@ from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from models import User, Product, Category, Order, Table, OrderItem, OrderStatus, RestaurantConfig, get_session
+from models import User, Product, Category, Order, Table, OrderItem, OrderStatus, RestaurantConfig, Inventory, get_session
+from services.ai_service import generate_analysis_text
+from collections import defaultdict
+from io import BytesIO
+from fastapi.responses import FileResponse
+import importlib
 from auth import require_role, get_current_active_user
 from models import UserRole
 from datetime import datetime, date, timedelta
@@ -186,6 +191,125 @@ async def get_sales_report(
         "daily_breakdown": daily_data,
         "top_products": top_products
     }
+
+@router.get("/reports/product-matrix")
+async def product_matrix(
+    current_user = Depends(require_role([UserRole.ADMIN])),
+    db: Session = Depends(get_session)
+):
+    counts = defaultdict(int)
+    for item in db.query(OrderItem).all():
+        if item.product_id:
+            counts[item.product_id] += item.quantity or 0
+    products = db.query(Product).all()
+    matrix = []
+    vols = [counts.get(p.id, 0) for p in products]
+    if vols:
+        threshold = sorted(vols)[max(0, int(len(vols)*0.7)-1)]
+    else:
+        threshold = 0
+    for p in products:
+        vol = counts.get(p.id, 0)
+        profit = float(p.price or 0.0)
+        tag = "Star" if vol >= threshold and profit >= (p.price or 0.0)*0.5 else "Dog"
+        matrix.append({"id": p.id, "name": p.name, "volume": vol, "profit_proxy": profit, "tag": tag})
+    analysis = generate_analysis_text(matrix)
+    return {"matrix": matrix, "analysis": analysis}
+
+@router.get("/reports/closing-report-pdf")
+async def closing_report_pdf(
+    current_user = Depends(require_role([UserRole.ADMIN])),
+    db: Session = Depends(get_session)
+):
+    orders = db.query(Order).all()
+    total_revenue = 0.0
+    for o in orders:
+        status = str(o.status).lower() if o.status else ""
+        if status not in ["cancelled", "iptal"]:
+            total_revenue += float(o.total_amount or 0.0)
+    counts = defaultdict(int)
+    totals = defaultdict(float)
+    for item in db.query(OrderItem).all():
+        counts[item.product_id] += item.quantity or 0
+        totals[item.product_id] += float(item.subtotal or 0.0)
+    products = db.query(Product).all()
+    top = sorted([
+        {"name": p.name, "qty": counts.get(p.id, 0), "total": totals.get(p.id, 0.0)} for p in products
+    ], key=lambda x: x["qty"], reverse=True)[:10]
+    matrix_data = [{"name": x["name"], "volume": x["qty"], "profit_proxy": x["total"]} for x in top]
+    analysis = generate_analysis_text(matrix_data)
+    try:
+        pagesizes = importlib.import_module("reportlab.lib.pagesizes")
+        pdfcanvas = importlib.import_module("reportlab.pdfgen.canvas")
+        A4 = pagesizes.A4
+        Canvas = pdfcanvas.Canvas
+        buf = BytesIO()
+        c = Canvas(buf, pagesize=A4)
+        c.setFont("Helvetica", 12)
+        c.drawString(50, 800, f"Toplam Ciro: {total_revenue:.2f} ₺")
+        c.drawString(50, 780, "Toplam Bahşiş: 0.00 ₺")
+        c.drawString(50, 760, "En Çok Satanlar:")
+        y = 740
+        for row in top:
+            c.drawString(60, y, f"{row['name']} - {row['qty']} adet - {row['total']:.2f} ₺")
+            y -= 18
+            if y < 100:
+                c.showPage()
+                c.setFont("Helvetica", 12)
+                y = 800
+        c.showPage()
+        c.setFont("Helvetica", 12)
+        c.drawString(50, 800, "AI Analizi:")
+        y = 780
+        for line in analysis.split("\n"):
+            c.drawString(60, y, line)
+            y -= 18
+            if y < 100:
+                c.showPage()
+                c.setFont("Helvetica", 12)
+                y = 800
+        c.save()
+        buf.seek(0)
+        uploads_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "frontend", "static", "uploads")
+        os.makedirs(uploads_dir, exist_ok=True)
+        path = os.path.join(uploads_dir, "closing_report.pdf")
+        with open(path, "wb") as f:
+            f.write(buf.read())
+        return FileResponse(path, media_type="application/pdf", filename="closing_report.pdf")
+    except Exception as e:
+        logger.error(f"PDF generation failed: {e}")
+        raise HTTPException(status_code=500, detail="PDF oluşturulamadı")
+
+class InventoryUpdate(BaseModel):
+    quantity: int
+
+@router.get("/inventory")
+async def list_inventory(
+    current_user = Depends(require_role([UserRole.ADMIN])),
+    db: Session = Depends(get_session)
+):
+    products = db.query(Product).filter(Product.is_active == True).all()
+    inv_map = {i.product_id: i.quantity for i in db.query(Inventory).all()}
+    return [{"product_id": p.id, "name": p.name, "quantity": int(inv_map.get(p.id, 0))} for p in products]
+
+@router.put("/inventory/{product_id}")
+async def update_inventory(
+    product_id: int,
+    data: InventoryUpdate,
+    current_user = Depends(require_role([UserRole.ADMIN])),
+    db: Session = Depends(get_session)
+):
+    p = db.query(Product).filter(Product.id == product_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Ürün bulunamadı")
+    inv = db.query(Inventory).filter(Inventory.product_id == product_id).first()
+    if not inv:
+        inv = Inventory(product_id=product_id, quantity=int(data.quantity or 0))
+        db.add(inv)
+    else:
+        inv.quantity = int(data.quantity or 0)
+    db.commit()
+    return {"product_id": product_id, "quantity": inv.quantity}
 
 @router.get("/settings")
 async def get_system_settings(db: Session = Depends(get_session)):

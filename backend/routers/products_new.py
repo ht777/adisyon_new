@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from models import Product, Category, ExtraGroup, ExtraItem, ProductExtraGroup, get_session
+from models import Product, Category, ExtraGroup, ExtraItem, ProductExtraGroup, Inventory, get_session
 from auth import require_role, get_current_active_user
 from models import UserRole
 import os
@@ -71,6 +71,7 @@ class ProductResponse(BaseModel):
     is_featured: bool
     is_active: bool
     created_at: datetime
+    stock: int = 0
     class Config: from_attributes = True
 
 class ProductDetailResponse(ProductResponse):
@@ -158,7 +159,24 @@ async def get_products(skip: int = 0, limit: int = 100, category_id: Optional[in
     if category_id: query = query.filter(Product.category_id == category_id)
     if featured_only: query = query.filter(Product.is_featured == True)
     if active_only: query = query.filter(Product.is_active == True)
-    return query.offset(skip).limit(limit).all()
+    products = query.offset(skip).limit(limit).all()
+    inv_map = {i.product_id: i.quantity for i in db.query(Inventory).all()}
+    result = []
+    for p in products:
+        category_data = {"id": p.category.id, "name": p.category.name, "icon": p.category.icon} if p.category else None
+        result.append({
+            "id": p.id,
+            "name": p.name,
+            "description": p.description,
+            "price": p.price,
+            "image_url": p.image_url,
+            "category": category_data,
+            "is_featured": p.is_featured,
+            "is_active": p.is_active,
+            "created_at": p.created_at,
+            "stock": int(inv_map.get(p.id, 9999))
+        })
+    return result
 
 @router.get("/{product_id}", response_model=ProductDetailResponse)
 async def get_product(product_id: int, db: Session = Depends(get_session)):
@@ -174,9 +192,16 @@ async def get_product(product_id: int, db: Session = Depends(get_session)):
         extra_groups.append(group_data)
     
     category_data = {"id": product.category.id, "name": product.category.name, "icon": product.category.icon} if product.category else None
+    from sqlalchemy.orm import Session as _Session
+    inv_qty = 9999
+    try:
+        inv = db.query(Inventory).filter(Inventory.product_id == product.id).first()
+        if inv: inv_qty = int(inv.quantity or 0)
+    except Exception:
+        pass
     return {
         "id": product.id, "name": product.name, "description": product.description, "price": product.price, "image_url": product.image_url,
-        "category": category_data, "is_featured": product.is_featured, "is_active": product.is_active, "created_at": product.created_at, "extra_groups": extra_groups
+        "category": category_data, "is_featured": product.is_featured, "is_active": product.is_active, "created_at": product.created_at, "stock": inv_qty, "extra_groups": extra_groups
     }
 
 @router.put("/{product_id}", response_model=ProductResponse)
