@@ -85,7 +85,7 @@ async def get_dashboard_stats(
         o_date = o_dt.date()
         o_date_str = o_date.isoformat()
         
-        status = str(o.status).lower() if o.status else ""
+        status = (o.status.value if o.status else "").lower()
         is_cancelled = status in ["cancelled", "iptal"]
         is_active = status in ["pending", "preparing", "bekliyor", "hazirlaniyor"]
         
@@ -224,7 +224,7 @@ async def closing_report_pdf(
     orders = db.query(Order).all()
     total_revenue = 0.0
     for o in orders:
-        status = str(o.status).lower() if o.status else ""
+        status = (o.status.value if o.status else "").lower()
         if status not in ["cancelled", "iptal"]:
             total_revenue += float(o.total_amount or 0.0)
     counts = defaultdict(int)

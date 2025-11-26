@@ -63,6 +63,16 @@ class ProductCreate(BaseModel):
     stock: int = 0
     track_stock: bool = False
 
+class ProductUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[float] = None
+    category_id: Optional[int] = None
+    is_featured: Optional[bool] = None
+    is_active: Optional[bool] = None
+    stock: Optional[int] = None
+    track_stock: Optional[bool] = None
+
 class ProductResponse(BaseModel):
     id: int
     name: str
@@ -202,11 +212,13 @@ async def get_product(product_id: int, db: Session = Depends(get_session)):
     }
 
 @router.put("/{product_id}", response_model=ProductResponse)
-async def update_product(product_id: int, product_update: ProductCreate, current_user = Depends(require_role([UserRole.ADMIN])), db: Session = Depends(get_session)):
+async def update_product(product_id: int, product_update: ProductUpdate, current_user = Depends(require_role([UserRole.ADMIN])), db: Session = Depends(get_session)):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product: raise HTTPException(status_code=404, detail="Ürün bulunamadı")
     old_stock = int(product.stock or 0)
-    for key, value in product_update.dict().items(): setattr(product, key, value)
+    # Kısmi update: sadece gönderilen alanlar güncellensin
+    updates = product_update.dict(exclude_unset=True)
+    for key, value in updates.items(): setattr(product, key, value)
     new_stock_val = int(product.stock or 0)
     if bool(product.track_stock or False) and new_stock_val != old_stock:
         diff = new_stock_val - old_stock

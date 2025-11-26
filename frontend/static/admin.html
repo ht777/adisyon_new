@@ -76,6 +76,17 @@
                     <div class="bg-white p-6 rounded-xl shadow-sm border-b-4 border-orange-500"><p class="text-gray-500 text-xs font-bold uppercase">Aktif Sipariş</p><p class="text-3xl font-bold text-slate-800 mt-1" id="statActiveOrders">0</p></div>
                     <div class="bg-white p-6 rounded-xl shadow-sm border-b-4 border-purple-500"><p class="text-gray-500 text-xs font-bold uppercase">Menü Ürünleri</p><p class="text-3xl font-bold text-slate-800 mt-1" id="statProducts">-</p></div>
                 </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <h3 class="font-bold text-gray-800 mb-3">Düşük Stok Bildirimleri</h3>
+                        <div id="lowStockList" class="space-y-2"></div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <h3 class="font-bold text-gray-800 mb-3">Açık Masalar</h3>
+                        <div id="tableStats" class="grid grid-cols-3 gap-3 mb-3"></div>
+                        <div id="openTablesGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                    </div>
+                </div>
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                     <h3 class="font-bold text-gray-800 mb-6">Haftalık Satış Grafiği</h3>
                     <div class="w-full h-80"><canvas id="salesChart"></canvas></div>
@@ -88,6 +99,10 @@
                     <button onclick="openProductModal()" class="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition shadow-lg flex items-center gap-2"><i class="fas fa-plus"></i> Yeni Ürün</button>
                 </div>
                 <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+                    <div class="flex justify-between items-center mb-4">
+                        <input type="text" id="stockSearch" placeholder="Ürün ara..." class="border p-2 rounded-lg" onkeyup="filterStockTable()">
+                        <button onclick="openProductModal(); document.getElementById('track_stock').checked = true;" class="bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700">Yeni Ürün</button>
+                    </div>
                     <table class="min-w-full divide-y divide-gray-100">
                         <thead class="bg-gray-50"><tr><th class="p-4 text-left">Resim</th><th class="p-4 text-left">Ürün Adı</th><th class="p-4 text-left">Kategori</th><th class="p-4 text-left">Fiyat</th><th class="p-4 text-center">İşlem</th></tr></thead>
                         <tbody id="productsTable" class="divide-y divide-gray-100"></tbody>
@@ -109,9 +124,20 @@
             </div>
 
             <div id="tablesSection" class="section hidden">
-                <div class="flex justify-between items-center mb-6">
+                <div class="mb-6">
+                    <h3 class="text-lg font-bold text-gray-800">Açık Masalar</h3>
+                    <div id="openTablesGridTables" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3"></div>
+                </div>
+                <div class="border-t my-6"></div>
+                <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-bold text-gray-800">Masa Yönetimi</h3>
-                    <button onclick="addTable()" class="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition shadow-lg">Yeni Masa</button>
+                    <div class="flex items-center gap-3">
+                        <input type="text" id="quickTableName" class="border p-2 rounded-lg" placeholder="Masa adı">
+                        <input type="number" id="quickTableNumber" class="border p-2 rounded-lg w-24" placeholder="No">
+                        <button onclick="addTableQuick()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Ekle</button>
+                        <input type="number" id="reactivateTableNumber" class="border p-2 rounded-lg w-28" placeholder="No Aktifleştir">
+                        <button onclick="reactivateTableByNumber()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Aktifleştir</button>
+                    </div>
                 </div>
                 <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
                     <table class="min-w-full divide-y divide-gray-100">
@@ -251,6 +277,20 @@
                     <button onclick="loadStock()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition">Yenile</button>
                 </div>
                 <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+                    <div class="p-4 flex flex-wrap items-center gap-3 border-b">
+                        <input type="text" id="quickNewName" class="border p-2 rounded-lg flex-1 min-w-[200px]" placeholder="Yeni ürün adı" onkeyup="if(event.key==='Enter'){quickCreateProduct();}">
+                        <select id="quickNewCategory" class="border p-2 rounded-lg"></select>
+                        <input type="number" id="quickNewPrice" class="border p-2 rounded-lg w-28" placeholder="Fiyat">
+                        <input type="number" id="quickNewStock" class="border p-2 rounded-lg w-24" placeholder="Stok">
+                        <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="quickNewTrack" checked> Takip</label>
+                        <button onclick="quickCreateProduct()" class="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700">Ekle</button>
+                    </div>
+                    <div class="p-4 flex flex-wrap items-center gap-3 border-b">
+                        <select id="quickProductSelect" class="border p-2 rounded-lg min-w-[200px]"></select>
+                        <input type="number" id="quickAmount" class="border p-2 rounded-lg w-24" placeholder="+/-">
+                        <button onclick="quickAddStock()" class="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700">Hızlı Ekle</button>
+                    </div>
+                    <div id="stockCards" class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4"></div>
                     <table class="min-w-full divide-y divide-gray-100">
                         <thead class="bg-gray-50"><tr><th class="p-4 text-left">Ürün</th><th class="p-4 text-right">Mevcut Stok</th><th class="p-4 text-right">Yeni Stok</th><th class="p-4 text-center">İşlem</th></tr></thead>
                         <tbody id="stockTable" class="divide-y divide-gray-100"></tbody>
@@ -496,8 +536,35 @@
                         options: { responsive: true, maintainAspectRatio: false }
                     });
                 }
+                try{
+                    const pr = await fetch('/api/products', {headers:getHeaders()});
+                    const pd = await pr.json();
+                    const low = (pd||[]).filter(p => p.track_stock && (p.stock||0) <= 15);
+                    const ls = document.getElementById('lowStockList');
+                    if(ls) ls.innerHTML = low.length ? low.map(p=>`<div class="flex items-center gap-2 text-sm"><span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span><span class="font-bold">${p.name}</span><span class="font-mono">(${p.stock})</span></div>`).join('') : '<div class="text-gray-400 text-sm">Uyarı yok</div>';
+                }catch(x){}
+                try{
+                    const tr = await fetch('/api/tables/open', {headers:getHeaders()});
+                    const td = await tr.json();
+                const grid = document.getElementById('openTablesGrid');
+                    if(grid) {
+                        const items = (td||[]).map(t=>`<div class="border rounded-xl p-4 ${t.total_amount>0?'border-green-300 bg-green-50':'border-gray-200 bg-white'}"><div class="flex justify-between items-center"><div class="font-bold">Masa ${t.table_number}</div><div class="font-mono">${(t.total_amount||0).toFixed(2)} ₺</div></div><div class="mt-2 text-xs text-gray-600">${t.items.length} kalem</div><div class="mt-3 flex justify-end gap-2"><button onclick="openTableDetails(${t.table_id})" class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">Detay</button><button onclick="printBill(${t.table_id})" class="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-800 text-sm">Yazdır</button><button onclick="closeTable(${t.table_id})" class="px-3 py-1 bg-slate-800 text-white rounded hover:bg-slate-900 text-sm">Hesap Alındı</button></div></div>`).join('');
+                        grid.innerHTML = items || '<div class="text-gray-400 text-sm">Hiç açık masa yok</div>';
+                    }
+                try{
+                    const sr = await fetch('/api/tables/stats/summary', {headers:getHeaders()});
+                    const sd = await sr.json();
+                    const stats = document.getElementById('tableStats');
+                    if(stats) stats.innerHTML = `
+                        <div class="bg-gray-50 rounded-lg p-3 text-center"><div class="text-xs text-gray-500">Toplam Aktif Masa</div><div class="text-xl font-bold">${sd.total_tables||0}</div></div>
+                        <div class="bg-gray-50 rounded-lg p-3 text-center"><div class="text-xs text-gray-500">Aktif (Son 2 saat)</div><div class="text-xl font-bold">${sd.active_tables||0}</div></div>
+                        <div class="bg-gray-50 rounded-lg p-3 text-center"><div class="text-xs text-gray-500">Müsait</div><div class="text-xl font-bold">${sd.available_tables||0}</div></div>
+                    `;
+                }catch(x){}
+                }catch(x){}
             } catch(e){} finally { hideLoading(); }
         }
+        async function closeTable(id){ showLoading(); try{ await fetch(`/api/tables/close/${id}`, {method:'POST', headers:getHeaders()}); loadDashboard(); }catch(x){} finally{ hideLoading(); } }
 
         // --- DİĞER FONKSİYONLAR ---
         async function loadProducts() {
@@ -523,7 +590,39 @@
         }
         // (Diğer fonksiyonlar ürün ekleme/silme vb. aynı mantıkla buraya eklenebilir, yer kaplamaması için kısalttım)
         
-        async function saveProduct(e){e.preventDefault();showLoading();const fd=new FormData(e.target);const d={name:fd.get('name'),description:fd.get('description'),price:parseFloat(fd.get('price')),category_id:parseInt(fd.get('category_id')),is_active:true};try{const r=await fetch('/api/products',{method:'POST',headers:getHeaders(),body:JSON.stringify(d)});if(r.ok){const np=await r.json();const im=document.getElementById('productImage').files[0];if(im){const f=new FormData();f.append('file',im);await fetch(`/api/products/${np.id}/image`,{method:'POST',headers:{'Authorization':`Bearer ${authToken}`},body:f});}closeProductModal();loadProducts();alert('Eklendi!');}else alert('Hata');}catch(e){alert(e);}finally{hideLoading();}}
+        async function saveProduct(e){
+            e.preventDefault();
+            showLoading();
+            const fd=new FormData(e.target);
+            const d={
+                name:fd.get('name'),
+                description:fd.get('description'),
+                price:parseFloat(fd.get('price')),
+                category_id:parseInt(fd.get('category_id')),
+                is_active:true,
+                track_stock: !!document.getElementById('track_stock')?.checked,
+                stock: parseInt(document.getElementById('stock_input')?.value||'0')
+            };
+            try{
+                const r=await fetch('/api/products',{method:'POST',headers:getHeaders(),body:JSON.stringify(d)});
+                if(r.ok){
+                    const np=await r.json();
+                    const im=document.getElementById('productImage').files[0];
+                    if(im){
+                        const f=new FormData();
+                        f.append('file',im);
+                        await fetch(`/api/products/${np.id}/image`,{method:'POST',headers:{'Authorization':`Bearer ${authToken}`},body:f});
+                    }
+                    closeProductModal();
+                    loadProducts();
+                    if(document.getElementById('stockSection') && !document.getElementById('stockSection').classList.contains('hidden')){ loadStock(); }
+                    alert('Eklendi!');
+                } else {
+                    alert('Hata');
+                }
+            }catch(err){ alert(err); }
+            finally{ hideLoading(); }
+        }
         async function deleteProduct(id){if(confirm('Sil?')){showLoading();await fetch(`/api/products/${id}`,{method:'DELETE',headers:getHeaders()});loadProducts();hideLoading();}}
         async function openProductModal(){const r=await fetch('/api/products/categories');const d=await r.json();categories=d.categories||d;document.getElementById('categorySelect').innerHTML='<option>Seç</option>'+categories.map(c=>`<option value="${c.id}">${c.name}</option>`);document.getElementById('productModal').classList.remove('hidden');}
         function closeProductModal(){document.getElementById('productModal').classList.add('hidden');}
@@ -534,10 +633,135 @@
         async function deleteCategory(id){if(confirm('Sil?')){showLoading();await fetch(`/api/products/categories/${id}`,{method:'DELETE',headers:getHeaders()});loadCategories();hideLoading();}}
 
         // Masalar
-        async function loadTables(){showLoading();try{const r=await fetch('/api/tables',{headers:getHeaders()});const d=await r.json();document.getElementById('tablesTable').innerHTML=d.map(t=>`<tr class="border-b hover:bg-gray-50"><td class="p-4 font-medium">${t.name}</td><td class="p-4 font-bold text-blue-600">${t.number}</td><td class="p-4 text-center"><button onclick="showQR(${t.id})" class="text-blue-600 mr-3 font-bold text-sm">QR</button><button onclick="deleteTable(${t.id})" class="text-red-500"><i class="fas fa-trash"></i></button></td></tr>`).join('');}catch(e){}finally{hideLoading();}}
+        async function loadTables(){
+            showLoading();
+            try{
+                const r=await fetch('/api/tables',{headers:getHeaders()});
+                const d=await r.json();
+                const tbody=document.getElementById('tablesTable');
+                if(tbody) {
+                    const rows = d.map(t=>`<tr class="border-b hover:bg-gray-50"><td class="p-4 font-medium">${t.name}</td><td class="p-4 font-bold text-blue-600">${t.number}</td><td class="p-4 text-center"><button onclick="showQR(${t.id})" class="text-blue-600 mr-3 font-bold text-sm">QR</button><button onclick="deleteTable(${t.id})" class="text-red-500"><i class="fas fa-trash"></i></button></td></tr>`).join('');
+                    tbody.innerHTML = rows || '<tr><td colspan="3" class="p-4 text-center text-gray-400">Hiç aktif masa yok</td></tr>';
+                }
+                try{
+                    const or=await fetch('/api/tables/open',{headers:getHeaders()});
+                    const od=await or.json();
+                    const grid=document.getElementById('openTablesGridTables');
+                    if(grid) {
+                        const items=(od||[]).map(t=>`<div class="border rounded-xl p-4 ${t.total_amount>0?'border-green-300 bg-green-50':'border-gray-200 bg-white'}"><div class="flex justify-between items-center"><div class="font-bold">Masa ${t.table_number}</div><div class="font-mono">${(t.total_amount||0).toFixed(2)} ₺</div></div><div class="mt-2 text-xs text-gray-600">${t.items.length} kalem</div><div class="mt-3 flex justify-end gap-2"><button onclick="openTableDetails(${t.table_id})" class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">Detay</button><button onclick="printBill(${t.table_id})" class="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-800 text-sm">Yazdır</button><button onclick="closeTable(${t.table_id})" class="px-3 py-1 bg-slate-800 text-white rounded hover:bg-slate-900 text-sm">Hesap Alındı</button></div></div>`).join('');
+                        grid.innerHTML = items || '<div class="text-gray-400 text-sm">Hiç açık masa yok</div>';
+                    }
+                }catch(x){}
+            }catch(e){}
+            finally{hideLoading();}
+        }
+        async function openTableDetails(id){
+            showLoading();
+            try{
+                const r=await fetch(`/api/tables/details/${id}`, {headers:getHeaders()});
+                const d=await r.json();
+                const w=window.open("","_blank");
+                const doc=w.document;
+                const wrap=doc.createElement('div');
+                wrap.className='p-6';
+                const container=doc.createElement('div');
+                container.className='max-w-2xl mx-auto';
+                const head=doc.createElement('div');
+                head.className='flex justify-between items-center mb-4';
+                const h2=doc.createElement('h2'); h2.className='text-2xl font-bold'; h2.textContent=`Masa ${d.table_number}`;
+                const ts=doc.createElement('span'); ts.className='text-sm text-gray-500'; ts.textContent=d.arrival_time?new Date(d.arrival_time).toLocaleString('tr-TR'):'';
+                head.appendChild(h2); head.appendChild(ts);
+                const totalCard=doc.createElement('div'); totalCard.className='bg-white border rounded-xl p-4 mb-4';
+                const totalRow=doc.createElement('div'); totalRow.className='flex justify-between';
+                const totalLbl=doc.createElement('div'); totalLbl.className='font-bold'; totalLbl.textContent='Toplam';
+                const totalVal=doc.createElement('div'); totalVal.className='font-mono text-lg'; totalVal.textContent=`${(d.total_amount||0).toFixed(2)} ₺`;
+                totalRow.appendChild(totalLbl); totalRow.appendChild(totalVal); totalCard.appendChild(totalRow);
+                const ordersBox=doc.createElement('div'); ordersBox.className='bg-white border rounded-xl p-4';
+                const ordersTitle=doc.createElement('h3'); ordersTitle.className='font-bold mb-2'; ordersTitle.textContent='Siparişler'; ordersBox.appendChild(ordersTitle);
+                (d.orders||[]).forEach(o=>{
+                    const sec=doc.createElement('div'); sec.className='border-b py-2';
+                    const top=doc.createElement('div'); top.className='flex justify-between';
+                    const left=doc.createElement('div'); left.className='font-semibold'; left.textContent=`#${o.id} - ${o.status}`;
+                    const right=doc.createElement('div'); right.className='text-xs text-gray-500'; right.textContent=new Date(o.created_at).toLocaleString('tr-TR');
+                    top.appendChild(left); top.appendChild(right); sec.appendChild(top);
+                    if(o.customer_notes){ const notes=doc.createElement('div'); notes.className='text-xs text-gray-600'; notes.textContent=`Not: ${o.customer_notes}`; sec.appendChild(notes); }
+                    const table=doc.createElement('table'); table.className='w-full text-sm mt-2';
+                    const thead=doc.createElement('thead'); thead.className='text-gray-500';
+                    thead.innerHTML='<tr><th class="text-left">Ürün</th><th class="text-center">Adet</th><th class="text-right">Fiyat</th><th class="text-right">Tutar</th></tr>';
+                    const tbody=doc.createElement('tbody');
+                    (o.items||[]).forEach(it=>{
+                        const tr=doc.createElement('tr');
+                        tr.innerHTML=`<td>${it.name}</td><td class="text-center">${it.quantity}</td><td class="text-right font-mono">${Number(it.unit_price||0).toFixed(2)} ₺</td><td class="text-right font-mono">${Number(it.subtotal||0).toFixed(2)} ₺</td>`;
+                        tbody.appendChild(tr);
+                    });
+                    table.appendChild(thead); table.appendChild(tbody); sec.appendChild(table);
+                    ordersBox.appendChild(sec);
+                });
+                const actions=doc.createElement('div'); actions.className='mt-4 text-right';
+                const btn=doc.createElement('button'); btn.className='px-4 py-2 bg-slate-800 text-white rounded hover:bg-slate-900'; btn.textContent='Yazdır'; btn.onclick=()=>{window.opener && window.opener.printBill(id); w.close();};
+                actions.appendChild(btn); ordersBox.appendChild(actions);
+                container.appendChild(head); container.appendChild(totalCard); container.appendChild(ordersBox);
+                wrap.appendChild(container); doc.body.appendChild(wrap);
+            }catch(x){ alert('Detay yüklenemedi'); }
+            finally{ hideLoading(); }
+        }
+        async function printBill(id){
+            showLoading();
+            try{ await fetch(`/api/tables/print-bill/${id}`, {method:'POST', headers:getHeaders()}); showToast('Hesap yazdırılıyor', 'blue'); }
+            catch(x){ alert('Yazdırma başarısız'); }
+            finally{ hideLoading(); }
+        }
+        async function addTableQuick(){
+            const n=document.getElementById('quickTableName')?.value.trim();
+            const num=parseInt(document.getElementById('quickTableNumber')?.value||'0');
+            if(!n || !num){ alert('Masa adı ve numarası gerekli'); return; }
+            showLoading();
+            try{ await fetch('/api/tables',{method:'POST',headers:getHeaders(),body:JSON.stringify({name:n,number:num})}); document.getElementById('quickTableName').value=''; document.getElementById('quickTableNumber').value=''; loadTables(); }
+            catch(x){ alert('Ekleme hatası'); }
+            finally{ hideLoading(); }
+        }
         async function addTable(){const n=prompt('Ad:');if(!n)return;const num=prompt('No:');showLoading();await fetch('/api/tables',{method:'POST',headers:getHeaders(),body:JSON.stringify({name:n,number:parseInt(num)})});loadTables();hideLoading();}
         async function deleteTable(id){if(confirm('Sil?')){showLoading();await fetch(`/api/tables/${id}`,{method:'DELETE',headers:getHeaders()});loadTables();hideLoading();}}
-        async function showQR(id){const r=await fetch(`/api/tables/${id}/qr`,{headers:getHeaders()});const d=await r.json();const w=window.open("","_blank");w.document.write(`<div style="text-align:center;margin-top:50px;font-family:sans-serif"><h1>${d.table_name}</h1><img src="${d.qr_url}" width="300"><br><button onclick="window.print()" style="margin-top:20px;padding:10px 20px;font-size:1.2em">YAZDIR</button></div>`);}
+        async function reactivateTableByNumber(){
+            const num=parseInt(document.getElementById('reactivateTableNumber')?.value||'0');
+            if(!num){ alert('Masa no gerekli'); return; }
+            showLoading();
+            try{
+                const r=await fetch('/api/tables?active_only=false',{headers:getHeaders()});
+                const d=await r.json();
+                const t=(d||[]).find(x=>x.number===num);
+                if(!t){ alert('Masa bulunamadı'); return; }
+                if(t.is_active){ alert('Masa zaten aktif'); return; }
+                const u=await fetch(`/api/tables/${t.id}`,{method:'PUT',headers:getHeaders(),body:JSON.stringify({is_active:true})});
+                if(u.ok){ document.getElementById('reactivateTableNumber').value=''; loadTables(); }
+                else{ alert('Aktifleştirme başarısız'); }
+            }catch(e){ alert('İstek hatası'); }
+            finally{ hideLoading(); }
+        }
+        async function showQR(id){
+            const r=await fetch(`/api/tables/${id}/qr`,{headers:getHeaders()});
+            const d=await r.json();
+            const w=window.open("","_blank");
+            const doc=w.document;
+            const root=doc.createElement('div');
+            root.style.textAlign='center';
+            root.style.marginTop='50px';
+            root.style.fontFamily='sans-serif';
+            const h1=doc.createElement('h1');
+            h1.textContent=d.table_name||`Masa ${id}`;
+            const img=doc.createElement('img');
+            img.width=300;
+            img.src=d.qr_url||'';
+            const br=doc.createElement('br');
+            const btn=doc.createElement('button');
+            btn.textContent='YAZDIR';
+            btn.style.marginTop='20px';
+            btn.style.padding='10px 20px';
+            btn.style.fontSize='1.2em';
+            btn.onclick=()=>w.print();
+            root.appendChild(h1);root.appendChild(img);root.appendChild(br);root.appendChild(btn);
+            doc.body.appendChild(root);
+        }
 
         // Siparişler
         async function loadOrders(){showLoading();try{const r=await fetch('/api/orders',{headers:getHeaders()});const d=await r.json();document.getElementById('ordersTable').innerHTML=d.map(o=>`<tr class="border-b hover:bg-gray-50"><td class="p-4 text-gray-500 font-mono">#${o.id}</td><td class="p-4 font-bold">${o.table_name}</td><td class="p-4 font-bold text-slate-700">${o.total_amount.toFixed(2)} ₺</td><td class="p-4"><span class="bg-gray-100 px-2 py-1 rounded text-xs font-bold text-gray-600 uppercase">${o.status}</span></td><td class="p-4 text-sm text-gray-500">${new Date(o.created_at).toLocaleTimeString('tr-TR').slice(0,5)}</td><td class="p-4 text-center"><button onclick="cancelOrder(${o.id})" class="text-red-500 border border-red-200 px-2 py-1 rounded text-xs hover:bg-red-50">İptal</button></td></tr>`).join('');}catch(e){}finally{hideLoading();}}
@@ -565,6 +789,11 @@
                     } else if(m.type && m.type.includes('order')) {
                         if(!document.getElementById('dashboardSection').classList.contains('hidden')) loadDashboard();
                         if(!document.getElementById('ordersSection').classList.contains('hidden')) loadOrders();
+                        if(!document.getElementById('tablesSection').classList.contains('hidden')) loadTables();
+                    } else if(m.type === 'table_status') {
+                        showToast(`${m.table_name} aktif oldu`, 'blue');
+                        if(!document.getElementById('dashboardSection').classList.contains('hidden')) loadDashboard();
+                        if(!document.getElementById('tablesSection').classList.contains('hidden')) loadTables();
                     }
                 } catch(x){}
             };
@@ -585,7 +814,103 @@
             loadSettings();
             connectWS();
         };
+        function filterStockTable(){
+            const q=(document.getElementById('stockSearch')?.value||'').toLowerCase();
+            const tbody=document.getElementById('stockTableBody')||document.getElementById('stockTable');
+            if(!tbody) return;
+            Array.from(tbody.querySelectorAll('tr')).forEach(tr=>{
+                const nameCell=tr.querySelector('td');
+                const name=nameCell?nameCell.textContent.toLowerCase():'';
+                tr.style.display=name.includes(q)?'':'';
+            });
+        }
     </script>
 </body>
 </html>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const sec = document.getElementById('stockSection') || document.getElementById('stocksSection');
+  if(sec){
+    const header = sec.querySelector('div.flex.justify-between.items-center') || sec.querySelector('div.mb-6');
+    if(header && !document.getElementById('stockAddBtn')){
+      const btn = document.createElement('button');
+      btn.id = 'stockAddBtn';
+      btn.className = 'bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700';
+      btn.textContent = 'Yeni Ürün';
+      btn.onclick = function(){
+        if(typeof openProductModal === 'function'){
+          openProductModal();
+          const cb = document.getElementById('track_stock');
+          if(cb){ cb.checked = true; }
+        }
+      };
+      header.appendChild(btn);
+    }
+  }
+});
+</script>
+<script>
+async function loadStock(){
+    showLoading();
+    try{
+        const res = await fetch('/api/products', {headers: getHeaders()});
+        const data = await res.json();
+        try{ const cr = await fetch('/api/products/categories'); const cd = await cr.json(); const cats = cd.categories||cd; const qc = document.getElementById('quickNewCategory'); if(qc) qc.innerHTML = cats.map(c=>`<option value="${c.id}">${c.name}</option>`).join(''); }catch(x){}
+        const tbody = document.getElementById('stockTable');
+        if(tbody) tbody.innerHTML = (data||[]).map(p => `
+            <tr class="border-b hover:bg-gray-50 transition">
+                <td class="p-4 font-medium text-gray-800">${p.name}</td>
+                <td class="p-4 text-right font-mono">${p.track_stock ? p.stock : '∞'}</td>
+                <td class="p-4 text-right">${p.track_stock ? `<input type=\"number\" min=\"0\" class=\"w-24 border p-2 rounded-lg text-right\" id=\"stock-${p.id}\" value=\"${p.stock}\">` : '<span class=\"text-xs text-gray-400\">Takip Kapalı</span>'}</td>
+                <td class="p-4 text-center"><button onclick=\"${p.track_stock ? `saveStock(${p.id})` : `toggleTrack(${p.id}, true)`}\" class=\"bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700\">${p.track_stock ? 'Güncelle' : 'Takibi Aç'}</button></td>
+            </tr>
+        `).join('');
+        const qs = document.getElementById('quickProductSelect');
+        if(qs) qs.innerHTML = (data||[]).map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+        const cards = document.getElementById('stockCards');
+        if(cards) cards.innerHTML = (data||[]).map(p => renderStockCard(p)).join('');
+    }catch(e){}finally{hideLoading();}
+}
+function renderStockCard(p){
+    const cap = 100;
+    const pct = Math.max(0, Math.min(100, Math.round(((p.stock||0)/cap)*100)));
+    let cls = 'bg-green-100 border-green-300';
+    if(pct < 75 && pct >= 50) cls = 'bg-yellow-100 border-yellow-300';
+    if(p.track_stock && p.stock <= 15) cls = 'bg-red-100 border-red-300 animate-pulse';
+    return `
+    <div class=\"p-4 rounded-xl border ${cls}\">
+        <div class=\"flex justify-between items-center\">
+            <div class=\"font-bold text-gray-800\">${p.name}</div>
+            <div class=\"text-sm\">${p.track_stock ? 'Takip' : 'Takipsiz'}</div>
+        </div>
+        <div class=\"mt-2 text-2xl font-mono\">${p.track_stock ? p.stock : '∞'}</div>
+        <div class=\"mt-1 text-xs text-gray-500\">Tahmini doluluk: ${pct}%</div>
+    </div>`;
+}
+async function quickCreateProduct(){
+    const name = document.getElementById('quickNewName')?.value.trim();
+    const category_id = parseInt(document.getElementById('quickNewCategory')?.value||'0');
+    const price = parseFloat(document.getElementById('quickNewPrice')?.value||'0');
+    const stock = parseInt(document.getElementById('quickNewStock')?.value||'0');
+    const track = !!document.getElementById('quickNewTrack')?.checked;
+    if(!name || !category_id || !price){ alert('Ad, kategori ve fiyat zorunlu'); return; }
+    showLoading();
+    try{
+        const r = await fetch('/api/products',{method:'POST', headers:getHeaders(), body: JSON.stringify({name, description:'', price, category_id, is_active:true, track_stock: track, stock})});
+        if(r.ok){ const qn=document.getElementById('quickNewName'); if(qn) qn.value=''; const qp=document.getElementById('quickNewPrice'); if(qp) qp.value=''; const qs=document.getElementById('quickNewStock'); if(qs) qs.value=''; loadStock(); }
+        else alert('Ekleme hatası');
+    }catch(x){ alert('İstek hatası'); }finally{ hideLoading(); }
+}
+async function quickAddStock(){
+    const id = parseInt(document.getElementById('quickProductSelect')?.value||'0');
+    const delta = parseInt(document.getElementById('quickAmount')?.value||'0');
+    if(!id || isNaN(delta)) { alert('Ürün ve miktar seçin'); return; }
+    const productsRes = await fetch(`/api/products/${id}`, {headers: getHeaders()});
+    const product = await productsRes.json();
+    const newStock = (product.stock||0) + delta;
+    await fetch(`/api/products/${id}`, {method:'PUT', headers: getHeaders(), body: JSON.stringify({stock: newStock})});
+    const qa = document.getElementById('quickAmount'); if(qa) qa.value='';
+    loadStock();
+}
+</script>
  

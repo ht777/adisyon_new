@@ -124,6 +124,95 @@ app.include_router(orders.router, prefix="/api")
 app.include_router(tables.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 
+@app.get("/api/kitchen-tickets")
+async def kitchen_tickets_alias(db: Session = Depends(get_session)):
+    from models import Order, OrderStatus
+    result = []
+    orders = db.query(Order).filter(
+        Order.status.in_([OrderStatus.BEKLIYOR, OrderStatus.HAZIRLANIYOR])
+    ).order_by(Order.created_at.asc()).all()
+    for order in orders:
+        items = []
+        for item in order.items:
+            p_name = item.product.name if item.product else "Silinmiş Ürün"
+            items.append({
+                "id": item.id,
+                "product_id": item.product_id,
+                "product_name": p_name,
+                "quantity": item.quantity,
+                "extras": item.extras,
+                "subtotal": item.subtotal
+            })
+        table_name = order.table.name if order.table else "Masa Bilinmiyor"
+        result.append({
+            "id": order.id,
+            "table_name": table_name,
+            "status": order.status,
+            "customer_notes": order.customer_notes,
+            "created_at": order.created_at.isoformat(),
+            "items": items,
+            "total_amount": order.total_amount
+        })
+    return result
+
+@app.get("/api/tables/open")
+async def open_tables_alias(db: Session = Depends(get_session)):
+    from models import Table, Order, OrderStatus, TableState
+    tables = db.query(Table).filter(Table.is_active == True).all()
+    result = []
+    for t in tables:
+        orders = db.query(Order).filter(Order.table_id == t.id).all()
+        active_items = []
+        total = 0.0
+        for o in orders:
+            if o.status not in [OrderStatus.TESLIM_EDILDI, OrderStatus.IPTAL]:
+                total += float(o.total_amount or 0.0)
+                for it in o.items:
+                    active_items.append({"order_id": o.id, "product_id": it.product_id, "quantity": it.quantity, "subtotal": float(it.subtotal or 0.0)})
+        occupied = False
+        ts = db.query(TableState).filter(TableState.table_id == t.id).first()
+        if ts and bool(ts.is_occupied):
+            occupied = True
+        if active_items or occupied:
+            result.append({
+                "table_id": t.id,
+                "table_number": t.number,
+                "table_name": t.name,
+                "total_amount": total,
+                "items": active_items,
+                "is_occupied": occupied
+            })
+    return result
+
+@app.get("/api/tables/open-list")
+async def open_tables_list_alias(db: Session = Depends(get_session)):
+    from models import Table, Order, OrderStatus, TableState
+    tables = db.query(Table).filter(Table.is_active == True).all()
+    result = []
+    for t in tables:
+        orders = db.query(Order).filter(Order.table_id == t.id).all()
+        active_items = []
+        total = 0.0
+        for o in orders:
+            if o.status not in [OrderStatus.TESLIM_EDILDI, OrderStatus.IPTAL]:
+                total += float(o.total_amount or 0.0)
+                for it in o.items:
+                    active_items.append({"order_id": o.id, "product_id": it.product_id, "quantity": it.quantity, "subtotal": float(it.subtotal or 0.0)})
+        occupied = False
+        ts = db.query(TableState).filter(TableState.table_id == t.id).first()
+        if ts and bool(ts.is_occupied):
+            occupied = True
+        if active_items or occupied:
+            result.append({
+                "table_id": t.id,
+                "table_number": t.number,
+                "table_name": t.name,
+                "total_amount": total,
+                "items": active_items,
+                "is_occupied": occupied
+            })
+    return result
+
 if os.path.exists(STATIC_DIR):
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 else:

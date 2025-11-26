@@ -74,6 +74,22 @@ async def generate_table_qr(table_number: int) -> str:
     return f"data:image/png;base64,{img_base64}"
 
 # --- ENDPOINTLER ---
+@router.get("/open")
+async def get_open_tables(db: Session = Depends(get_session)):
+    tables = db.query(Table).filter(Table.is_active == True).all()
+    result = []
+    for t in tables:
+        orders = db.query(Order).filter(Order.table_id == t.id).all()
+        active_items = []
+        total = 0.0
+        for o in orders:
+            if o.status not in [OrderStatus.TESLIM_EDILDI, OrderStatus.IPTAL]:
+                total += float(o.total_amount or 0.0)
+                for it in o.items:
+                    active_items.append({"order_id": o.id, "product_id": it.product_id, "quantity": it.quantity, "subtotal": float(it.subtotal or 0.0)})
+        if active_items:
+            result.append({"table_id": t.id, "table_number": t.number, "table_name": t.name, "total_amount": total, "items": active_items})
+    return result
 
 @router.post("", response_model=TableResponse)
 async def create_table(table: TableCreate, current_user = Depends(require_role([UserRole.ADMIN])), db: Session = Depends(get_session)):
@@ -237,11 +253,18 @@ async def call_waiter(
         if request.type == "hesap":
             msg_text = f"💳 {table.name} HESAP İSTİYOR!"
             msg_type = "bill_request"
+            try:
+                import logging
+                logging.getLogger("printer").info(f"Printing bill for table #{table.number}")
+            except Exception:
+                pass
         
         # Admin paneline WebSocket ile bildir
         await broadcast_to_admin({
             "type": msg_type,
             "table_name": table.name,
+            "table_id": table.id,
+            "table_number": table.number,
             "message": msg_text,
             "timestamp": datetime.now().strftime("%H:%M")
         })
@@ -297,3 +320,71 @@ async def merge_tables(source_id: int, target_id: int, db: Session = Depends(get
         t.is_occupied = True
     db.commit()
     return {"message": "Birleştirildi", "source_merged_with": target_id}
+
+@router.get("/details/{table_id}")
+async def get_table_details(table_id: int, db: Session = Depends(get_session)):
+    table = db.query(Table).filter(Table.id == table_id).first()
+    if not table:
+        raise HTTPException(status_code=404, detail="Masa bulunamadı")
+    orders = db.query(Order).filter(Order.table_id == table_id).order_by(Order.created_at.asc()).all()
+    arrival_time = None
+    total = 0.0
+    order_list = []
+    for o in orders:
+        status = (o.status.value if o.status else "").lower()
+        if status not in ["cancelled", "iptal"]:
+            total += float(o.total_amount or 0.0)
+        if arrival_time is None:
+            arrival_time = o.created_at
+        items = []
+        for it in o.items:
+            name = it.product.name if it.product else "Bilinmeyen"
+            items.append({
+                "name": name,
+                "quantity": it.quantity,
+                "unit_price": float(it.unit_price or 0.0),
+                "subtotal": float(it.subtotal or 0.0),
+                "extras": it.extras
+            })
+        order_list.append({
+            "id": o.id,
+            "status": o.status.value if o.status else None,
+            "created_at": o.created_at.isoformat(),
+            "customer_notes": o.customer_notes,
+            "items": items
+        })
+    return {
+        "table_id": table.id,
+        "table_number": table.number,
+        "table_name": table.name,
+        "arrival_time": arrival_time.isoformat() if arrival_time else None,
+        "total_amount": total,
+        "orders": order_list
+    }
+
+@router.post("/print-bill/{table_id}")
+async def print_bill(table_id: int, db: Session = Depends(get_session)):
+    table = db.query(Table).filter(Table.id == table_id).first()
+    if not table:
+        raise HTTPException(status_code=404, detail="Masa bulunamadı")
+    import logging
+    logging.getLogger("printer").info(f"Printing bill for table #{table.number}")
+    return {"message": "Bill printing triggered", "table_id": table_id}
+
+@router.post("/close/{table_id}")
+async def close_table(table_id: int, db: Session = Depends(get_session)):
+    table = db.query(Table).filter(Table.id == table_id).first()
+    if not table:
+        raise HTTPException(status_code=404, detail="Masa bulunamadı")
+    orders = db.query(Order).filter(Order.table_id == table_id).all()
+    for o in orders:
+        if o.status not in [OrderStatus.TESLIM_EDILDI, OrderStatus.IPTAL]:
+            o.status = OrderStatus.TESLIM_EDILDI
+    s = db.query(TableState).filter(TableState.table_id == table_id).first()
+    if not s:
+        s = TableState(table_id=table_id, is_occupied=False)
+        db.add(s)
+    else:
+        s.is_occupied = False
+    db.commit()
+    return {"message": "Masa kapatıldı", "table_id": table_id}

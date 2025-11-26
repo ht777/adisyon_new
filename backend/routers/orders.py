@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
-from models import Order, OrderItem, OrderStatus, Table, Product, get_session
+from models import Order, OrderItem, OrderStatus, Table, Product, TableState, get_session
 from auth import require_role, get_current_active_user, optional_current_user
 from models import UserRole
 from datetime import datetime
@@ -150,6 +150,17 @@ async def create_order(order: OrderCreate, db: Session = Depends(get_session)):
     
     new_order.total_amount = total_amount
     db.commit()
+    # Masa occupancy set
+    try:
+        ts = db.query(TableState).filter(TableState.table_id == table.id).first()
+        if not ts:
+            ts = TableState(table_id=table.id, is_occupied=True)
+            db.add(ts)
+        else:
+            ts.is_occupied = True
+        db.commit()
+    except Exception:
+        db.rollback()
     
     await broadcast_order_update({
         "id": new_order.id, "table_id": new_order.table_id, "table_name": table.name, "status": new_order.status,
@@ -157,6 +168,7 @@ async def create_order(order: OrderCreate, db: Session = Depends(get_session)):
         "created_at": new_order.created_at.isoformat(),
         "items": [{"product_name": i['product']['name'], "quantity": i['quantity']} for i in order_items]
     }, "order_created")
+    await broadcast_to_admin({"type": "table_status", "table_number": table.number, "table_name": table.name, "is_occupied": True, "total_amount": new_order.total_amount})
     
     return {
         "id": new_order.id, "table_id": new_order.table_id, "table_name": table.name, "status": new_order.status,
