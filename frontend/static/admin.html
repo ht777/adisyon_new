@@ -162,7 +162,7 @@
 
             <div id="reportsSection" class="section hidden">
                 <div class="bg-white p-6 rounded-xl shadow-sm mb-6 border border-gray-100">
-                    <h3 class="font-bold text-gray-800 mb-4">Tarih Aralığı Seç</h3>
+                    <h3 class="font-bold text-gray-800 mb-4">Rapor Filtreleri</h3>
                     <div class="flex gap-4 items-end flex-wrap">
                         <div>
                             <label class="text-sm text-gray-500 block mb-1">Başlangıç</label>
@@ -172,7 +172,28 @@
                             <label class="text-sm text-gray-500 block mb-1">Bitiş</label>
                             <input type="date" id="reportEnd" class="block border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
+                        <div class="flex gap-2">
+                            <button onclick="presetRange('today')" class="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300">Bugün</button>
+                            <button onclick="presetRange('yesterday')" class="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300">Dün</button>
+                            <button onclick="presetRange('7')" class="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300">Son 7 Gün</button>
+                            <button onclick="presetRange('30')" class="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300">Son 30 Gün</button>
+                        </div>
+                        <div class="flex gap-2 items-end">
+                            <div>
+                                <label class="text-sm text-gray-500 block mb-1">Rapor Türü</label>
+                                <select id="reportType" class="border p-2 rounded-lg"><option value="overview">Genel Bakış</option><option value="products">Ürünler</option><option value="cancellations">İptaller</option><option value="tables">Masalar</option></select>
+                            </div>
+                            <div>
+                                <label class="text-sm text-gray-500 block mb-1">Departman</label>
+                                <select id="reportDept" class="border p-2 rounded-lg"><option value="all">Tümü</option><option value="service">Servis</option><option value="kitchen">Mutfak</option></select>
+                            </div>
+                        </div>
                         <button onclick="loadReports()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition shadow-md">Raporla</button>
+                        
+                        <button onclick="exportReport('pdf')" class="bg-purple-700 text-white px-4 py-2 rounded-lg hover:bg-purple-800">PDF</button>
+                        <button onclick="downloadFullPdf()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">Kapsamlı PDF</button>
+                        <button onclick="loadReportArchive()" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">Arşiv</button>
+                        <button onclick="clearReportArchive()" class="bg-gray-300 text-slate-800 px-4 py-2 rounded-lg hover:bg-gray-400">Temizle</button>
                     </div>
                 </div>
 
@@ -209,6 +230,37 @@
                             <button onclick="downloadClosingPdf()" class="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900">Kapanış PDF</button>
                         </div>
                         <div id="aiAnalysis" class="mt-4 text-sm text-gray-600"></div>
+                        <div class="mt-4 flex gap-2 items-end">
+                            <input type="text" id="aiQuery" class="border p-2 rounded-lg flex-1" placeholder="AI Soru (örn: gelecek hafta tahmin)">
+                            <button onclick="askAIQuery()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Sor</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mt-6">
+                    <h4 class="font-bold text-gray-700 mb-4">Rapor Önizleme</h4>
+                    <div id="reportPreview" class="border rounded-xl p-4 bg-gray-50"></div>
+                    <div class="mt-3"><button onclick="generatePreview()" class="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900">Önizlemeyi Güncelle</button></div>
+                </div>
+                <div id="reportArchive" class="mt-6 bg-white p-6 rounded-xl shadow-sm border border-gray-100 hidden"></div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <h4 class="font-bold text-gray-700 mb-4">Ürün Analizi</h4>
+                        <div class="overflow-auto max-h-60">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-gray-50 text-gray-500"><tr><th class="p-2">Ürün</th><th class="p-2 text-right">Adet</th><th class="p-2 text-right">Tutar</th></tr></thead>
+                                <tbody id="productStatsTable" class="divide-y"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <h4 class="font-bold text-gray-700 mb-4">İptaller</h4>
+                        <div class="overflow-auto max-h-60">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-gray-50 text-gray-500"><tr><th class="p-2">Sipariş</th><th class="p-2">Masa</th><th class="p-2 text-right">Tutar</th><th class="p-2">Tarih</th></tr></thead>
+                                <tbody id="cancellationsTable" class="divide-y"></tbody>
+                            </table>
+                        </div>
+                        <div class="mt-3 text-right text-sm">Toplam İptal: <span id="cancellationsTotal" class="font-bold">0.00 ₺</span></div>
                     </div>
                 </div>
             </div>
@@ -366,7 +418,7 @@
             const s = document.getElementById('reportStart').value;
             const e = document.getElementById('reportEnd').value;
             
-            let url = '/api/admin/reports/sales';
+            let url = '/api/admin/reports/overview';
             if(s && e) url += `?start_date=${s}&end_date=${e}`;
 
             try {
@@ -376,7 +428,6 @@
                 if(!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
                 
                 const data = await res.json();
-                console.log("Rapor Geldi:", data);
 
                 // Verileri Doldur
                 document.getElementById('repTotalRevenue').innerText = (data.total_revenue || 0).toFixed(2) + ' ₺';
@@ -384,18 +435,25 @@
                 document.getElementById('repAvgOrder').innerText = (data.average_order || 0).toFixed(2) + ' ₺';
 
                 // Tabloyu Doldur
+                const ps = await fetch(`/api/admin/reports/products${s&&e?`?start_date=${s}&end_date=${e}`:''}`, {headers: getHeaders()});
+                const pd = await ps.json();
                 const tbody = document.getElementById('topProductsTable');
-                if(data.top_products && data.top_products.length > 0) {
-                    tbody.innerHTML = data.top_products.map(p => `
+                const ptable = document.getElementById('productStatsTable');
+                const arr = (pd.items||[]);
+                tbody.innerHTML = arr.slice(0,10).map(p => `
                         <tr class="hover:bg-gray-50 border-b last:border-0">
                             <td class="p-3 font-medium text-gray-700">${p.name}</td>
                             <td class="p-3 font-bold text-center">${p.qty}</td>
-                            <td class="p-3 text-right font-mono text-slate-600">${p.total.toFixed(2)} ₺</td>
+                            <td class="p-3 text-right font-mono text-slate-600">${Number(p.total||0).toFixed(2)} ₺</td>
                         </tr>
                     `).join('');
-                } else {
-                    tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-400">Veri yok</td></tr>';
-                }
+                if(ptable) ptable.innerHTML = arr.map(p => `
+                        <tr class="hover:bg-gray-50 border-b last:border-0">
+                            <td class="p-2 font-medium text-gray-700">${p.name}</td>
+                            <td class="p-2 text-right">${p.qty}</td>
+                            <td class="p-2 text-right font-mono">${Number(p.total||0).toFixed(2)} ₺</td>
+                        </tr>
+                    `).join('');
 
                 // Grafiği Çiz
                 if(window.Chart) {
@@ -403,8 +461,8 @@
                     if(chartInstance) chartInstance.destroy();
                     
                     // Eğer breakdown verisi boşsa boş grafik çizmemek için kontrol
-                    const labels = (data.daily_breakdown || []).map(x => new Date(x.date).toLocaleDateString('tr-TR'));
-                    const values = (data.daily_breakdown || []).map(x => x.revenue);
+                    const labels = (data.daily_trend || []).map(x => new Date(x.date).toLocaleDateString('tr-TR'));
+                    const values = (data.daily_trend || []).map(x => x.revenue);
 
                     chartInstance = new Chart(ctx, {
                         type: 'bar',
@@ -421,12 +479,105 @@
                     });
                 }
 
+                try{
+                    const cs = await fetch(`/api/admin/reports/cancellations${s&&e?`?start_date=${s}&end_date=${e}`:''}`, {headers: getHeaders()});
+                    const cd = await cs.json();
+                    const ct = document.getElementById('cancellationsTable');
+                    const ttl = document.getElementById('cancellationsTotal');
+                    if(ct) ct.innerHTML = (cd.items||[]).map(x => `<tr><td class="p-2">#${x.id}</td><td class="p-2">Masa ${x.table_number||'-'} — ${x.table_name||''}</td><td class="p-2 text-right font-mono">${Number(x.total||0).toFixed(2)} ₺</td><td class="p-2 text-sm text-gray-500">${new Date(x.created_at).toLocaleString('tr-TR')}</td></tr>`).join('');
+                    if(ttl) ttl.innerText = `${Number(cd.total||0).toFixed(2)} ₺`;
+                }catch(x){}
+                try{
+                    const ai = await fetch(`/api/admin/reports/insights${s&&e?`?start_date=${s}&end_date=${e}`:''}`, {headers: getHeaders()});
+                    const aj = await ai.json();
+                    const el = document.getElementById('aiAnalysis');
+                    if(el) el.innerText = (aj.analysis||'').toString();
+                }catch(x){}
             } catch(e) {
                 console.error("Rapor hatası:", e);
                 alert("Rapor yüklenirken hata oluştu. Konsolu kontrol edin.");
             } finally {
                 hideLoading();
             }
+        }
+        async function generatePreview(){
+            showLoading();
+            try{
+                const s = document.getElementById('reportStart').value;
+                const e = document.getElementById('reportEnd').value;
+                let url = '/api/admin/reports/proto';
+                if(s && e) url += `?start_date=${s}&end_date=${e}`;
+                const r = await fetch(url, {headers: getHeaders()});
+                const d = await r.json();
+                const box = document.getElementById('reportPreview');
+                const name = (d.settings?.restaurant_name)||'Restoran';
+                const kpi = d.overview||{};
+                const trend = (kpi.daily_trend||[]);
+                const prods = (d.products?.items)||[];
+                const canc = (d.cancellations?.items)||[];
+                box.innerHTML = `
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-12 h-12 bg-slate-200 rounded"></div>
+                        <div>
+                            <div class="text-lg font-bold">${name}</div>
+                            <div class="text-xs text-gray-500">Önizleme</div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3 mb-3">
+                        <div class="bg-white p-3 rounded border"><div class="text-xs text-gray-500">Toplam Ciro</div><div class="font-bold">${Number(kpi.total_revenue||0).toFixed(2)} ₺</div></div>
+                        <div class="bg-white p-3 rounded border"><div class="text-xs text-gray-500">Toplam Sipariş</div><div class="font-bold">${kpi.total_orders||0}</div></div>
+                        <div class="bg-white p-3 rounded border"><div class="text-xs text-gray-500">İptaller</div><div class="font-bold">${kpi.cancelled_orders||0}</div></div>
+                    </div>
+                    <div class="bg-white p-3 rounded border mb-3">
+                        <div class="font-bold mb-2">Top Ürünler</div>
+                        ${prods.slice(0,5).map(p=>`<div class='flex justify-between text-sm'><span>${p.name}</span><span class='font-mono'>${Number(p.total||0).toFixed(2)} ₺</span></div>`).join('')||'<div class="text-gray-400 text-sm">Veri yok</div>'}
+                    </div>
+                    <div class="bg-white p-3 rounded border">
+                        <div class="font-bold mb-2">İptaller</div>
+                        ${canc.slice(0,5).map(x=>`<div class='flex justify-between text-sm'><span>Masa ${x.table_number||'-'} — ${x.table_name||''}</span><span class='font-mono'>${Number(x.total||0).toFixed(2)} ₺</span></div>`).join('')||'<div class="text-gray-400 text-sm">Veri yok</div>'}
+                    </div>
+                `;
+            }catch(x){ alert('Önizleme oluşturulamadı'); }
+            finally{ hideLoading(); }
+        }
+        function presetRange(type){
+            const s = document.getElementById('reportStart');
+            const e = document.getElementById('reportEnd');
+            const now = new Date();
+            const fmt = d => d.toISOString().slice(0,10);
+            if(type==='today'){
+                const d = fmt(now);
+                s.value = d; e.value = d;
+            }else if(type==='yesterday'){
+                const y = new Date(now.getTime()-86400000);
+                const d = fmt(y);
+                s.value = d; e.value = d;
+            }else{
+                const days = parseInt(type);
+                const start = new Date(now.getTime()-days*86400000);
+                s.value = fmt(start); e.value = fmt(now);
+            }
+            loadReports();
+        }
+        async function exportReport(fmt){
+            showLoading();
+            try{
+                const s = document.getElementById('reportStart').value;
+                const e = document.getElementById('reportEnd').value;
+                let url = `/api/admin/reports/export?format=${fmt}`;
+                if(s && e) url += `&start_date=${s}&end_date=${e}`;
+                const r = await fetch(url, {headers: getHeaders()});
+                if(fmt==='pdf' && r.ok){
+                    const url = '/static/uploads/closing_report.pdf?t=' + new Date().getTime();
+                    const a = document.createElement('a'); a.href=url; a.download='closing_report.pdf'; a.click();
+                } else if(fmt==='csv' && r.ok){
+                    const url = '/static/uploads/report_export.csv?t=' + new Date().getTime();
+                    const a = document.createElement('a'); a.href=url; a.download='report_export.csv'; a.click();
+                } else {
+                    alert('Dışa aktarma başarısız');
+                }
+            }catch(x){ alert('İstek hatası'); }
+            finally{ hideLoading(); }
         }
 
         async function loadProductMatrix(){
@@ -453,6 +604,69 @@
                     alert('PDF oluşturulamadı');
                 }
             }catch(e){ alert('PDF isteği başarısız'); }
+        }
+        async function downloadFullPdf(){
+            showLoading();
+            try{
+                const s = document.getElementById('reportStart').value;
+                const e = document.getElementById('reportEnd').value;
+                let url = '/api/admin/reports/full-pdf';
+                const qs = [];
+                if(s && e){ qs.push(`start_date=${s}`); qs.push(`end_date=${e}`); }
+                qs.push('include_ai=true');
+                if(qs.length) url += '?' + qs.join('&');
+                const res = await fetch(url, {headers: getHeaders()});
+                if(res.ok){
+                    const fname = `full_report_${s||''}_${e||''}.pdf`;
+                    const a = document.createElement('a');
+                    a.href = `/static/uploads/${fname}`;
+                    a.download = fname;
+                    a.click();
+                } else { alert('PDF oluşturulamadı'); }
+            }catch(x){ alert('İstek hatası'); }
+            finally{ hideLoading(); }
+        }
+        async function loadReportArchive(){
+            showLoading();
+            try{
+                const r = await fetch('/api/admin/reports/archive', {headers: getHeaders()});
+                const d = await r.json();
+                const box = document.getElementById('reportArchive');
+                box.classList.remove('hidden');
+                const rows = (d.files||[]).map(f=>`<tr class="border-b"><td class="p-2"><a href="${f.url}" class="text-blue-600 hover:underline" download>${f.name}</a></td><td class="p-2">${f.type||''}</td><td class="p-2 text-right">${(f.size||0)} B</td><td class="p-2 text-sm text-gray-500">${(f.modified||'').toString()}</td><td class="p-2 text-right"><button onclick="deleteReportFile('${f.name}')" class="px-2 py-1 bg-red-600 text-white rounded text-xs">Sil</button></td></tr>`).join('');
+                box.innerHTML = rows ? (`<table class="w-full text-sm"><thead class="bg-gray-50 text-gray-500"><tr><th class="p-2 text-left">Dosya</th><th class="p-2">Tür</th><th class="p-2 text-right">Boyut</th><th class="p-2">Güncellendi</th><th class="p-2 text-right">İşlem</th></tr></thead><tbody>${rows}</tbody></table>`) : '<div class="text-gray-400">Arşiv boş</div>';
+            }catch(x){}
+            finally{ hideLoading(); }
+        }
+        function clearReportArchive(){
+            const box = document.getElementById('reportArchive');
+            box.classList.add('hidden');
+            box.innerHTML = '';
+        }
+        async function deleteReportFile(name){
+            showLoading();
+            try{
+                const r = await fetch('/api/admin/reports/archive/' + encodeURIComponent(name), {method:'DELETE', headers: getHeaders()});
+                if(r.ok){ loadReportArchive(); }
+                else{ alert('Silme başarısız'); }
+            }catch(x){ alert('İstek hatası'); }
+            finally{ hideLoading(); }
+        }
+        async function askAIQuery(){
+            showLoading();
+            try{
+                const s = document.getElementById('reportStart').value;
+                const e = document.getElementById('reportEnd').value;
+                const q = encodeURIComponent(document.getElementById('aiQuery').value||'');
+                if(!q){ alert('Soru girin'); hideLoading(); return; }
+                let url = `/api/admin/reports/ai/query?q=${q}`;
+                if(s && e) url += `&start_date=${s}&end_date=${e}`;
+                const r = await fetch(url, {headers: getHeaders()});
+                const d = await r.json();
+                const el = document.getElementById('aiAnalysis');
+                if(el) el.innerText = (d.answer||'');
+            }catch(x){ alert('AI isteği başarısız'); }
+            finally{ hideLoading(); }
         }
 
         async function loadLeague(){
@@ -546,9 +760,9 @@
                 try{
                     const tr = await fetch('/api/tables/open', {headers:getHeaders()});
                     const td = await tr.json();
-                const grid = document.getElementById('openTablesGrid');
+                    const grid = document.getElementById('openTablesGrid');
                     if(grid) {
-                        const items = (td||[]).map(t=>`<div class="border rounded-xl p-4 ${t.total_amount>0?'border-green-300 bg-green-50':'border-gray-200 bg-white'}"><div class="flex justify-between items-center"><div class="font-bold">Masa ${t.table_number}</div><div class="font-mono">${(t.total_amount||0).toFixed(2)} ₺</div></div><div class="mt-2 text-xs text-gray-600">${t.items.length} kalem</div><div class="mt-3 flex justify-end gap-2"><button onclick="openTableDetails(${t.table_id})" class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">Detay</button><button onclick="printBill(${t.table_id})" class="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-800 text-sm">Yazdır</button><button onclick="closeTable(${t.table_id})" class="px-3 py-1 bg-slate-800 text-white rounded hover:bg-slate-900 text-sm">Hesap Alındı</button></div></div>`).join('');
+                        const items = (td||[]).map(t=>`<div class="border rounded-xl p-4 ${t.total_amount>0?'border-green-300 bg-green-50':'border-gray-200 bg-white'}"><div class="flex justify-between items-center"><div class="font-bold">masa - ${t.table_number}</div><div class="font-mono">${(t.total_amount||0).toFixed(2)} ₺</div></div><div class="mt-2 text-xs text-gray-600">${t.items.length} kalem</div><div class="mt-3 flex justify-end gap-2"><button onclick="openTableDetails(${t.table_id})" class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">Detay</button><button onclick="printBill(${t.table_id})" class="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-800 text-sm">Yazdır</button><button onclick="closeTable(${t.table_id})" class="px-3 py-1 bg-slate-800 text-white rounded hover:bg-slate-900 text-sm">Hesap Alındı</button></div></div>`).join('');
                         grid.innerHTML = items || '<div class="text-gray-400 text-sm">Hiç açık masa yok</div>';
                     }
                 try{
@@ -648,7 +862,7 @@
                     const od=await or.json();
                     const grid=document.getElementById('openTablesGridTables');
                     if(grid) {
-                        const items=(od||[]).map(t=>`<div class="border rounded-xl p-4 ${t.total_amount>0?'border-green-300 bg-green-50':'border-gray-200 bg-white'}"><div class="flex justify-between items-center"><div class="font-bold">Masa ${t.table_number}</div><div class="font-mono">${(t.total_amount||0).toFixed(2)} ₺</div></div><div class="mt-2 text-xs text-gray-600">${t.items.length} kalem</div><div class="mt-3 flex justify-end gap-2"><button onclick="openTableDetails(${t.table_id})" class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">Detay</button><button onclick="printBill(${t.table_id})" class="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-800 text-sm">Yazdır</button><button onclick="closeTable(${t.table_id})" class="px-3 py-1 bg-slate-800 text-white rounded hover:bg-slate-900 text-sm">Hesap Alındı</button></div></div>`).join('');
+                        const items=(od||[]).map(t=>`<div class="border rounded-xl p-4 ${t.total_amount>0?'border-green-300 bg-green-50':'border-gray-200 bg-white'}"><div class="flex justify-between items-center"><div class="font-bold">masa - ${t.table_number}</div><div class="font-mono">${(t.total_amount||0).toFixed(2)} ₺</div></div><div class="mt-2 text-xs text-gray-600">${t.items.length} kalem</div><div class="mt-3 flex justify-end gap-2"><button onclick="openTableDetails(${t.table_id})" class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">Detay</button><button onclick="printBill(${t.table_id})" class="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-800 text-sm">Yazdır</button><button onclick="closeTable(${t.table_id})" class="px-3 py-1 bg-slate-800 text-white rounded hover:bg-slate-900 text-sm">Hesap Alındı</button></div></div>`).join('');
                         grid.innerHTML = items || '<div class="text-gray-400 text-sm">Hiç açık masa yok</div>';
                     }
                 }catch(x){}

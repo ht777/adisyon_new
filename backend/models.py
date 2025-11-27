@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, DateTime, JSON, Enum, ForeignKey, Table
+from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, DateTime, JSON, Enum, ForeignKey, Table, Date
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
@@ -172,6 +172,23 @@ class StockMovement(Base):
     description = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.now)
     product = relationship("Product", back_populates="stock_movements")
+class DailySalesSummary(Base):
+    __tablename__ = "daily_sales_summary"
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    date = Column(Date, nullable=False, unique=True)
+    total_orders = Column(Integer, default=0)
+    total_revenue = Column(Float, default=0.0)
+    cancelled_orders = Column(Integer, default=0)
+    avg_order = Column(Float, default=0.0)
+    created_at = Column(DateTime, default=datetime.now)
+class DailyProductSummary(Base):
+    __tablename__ = "daily_product_summary"
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    date = Column(Date, nullable=False, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), index=True)
+    qty = Column(Integer, default=0)
+    revenue = Column(Float, default=0.0)
+    created_at = Column(DateTime, default=datetime.now)
 # Database setup
 def get_engine():
     return create_engine("sqlite:///./restaurant.db", connect_args={"check_same_thread": False})
