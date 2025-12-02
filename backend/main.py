@@ -3,9 +3,9 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depe
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from models import create_tables, User, UserRole, RestaurantConfig, get_session
+from models import create_tables, ensure_schema, User, UserRole, RestaurantConfig, get_session
 from pathlib import Path
-from routers import products_new as products, orders, admin, auth, tables
+from routers import products_new as products, orders, admin, auth, tables, waiters
 from sqlalchemy.orm import Session
 from models import get_session
 from auth import get_password_hash
@@ -62,6 +62,7 @@ async def lifespan(app: FastAPI):
 
     # 1. Tabloları Oluştur
     create_tables()
+    ensure_schema()
     logger.info("Database tables created/verified")
 
     # 2. OTOMATİK BAŞLANGIÇ VERİLERİ (Settings dahil)
@@ -123,6 +124,7 @@ app.include_router(products.router, prefix="/api")
 app.include_router(orders.router, prefix="/api")
 app.include_router(tables.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
+app.include_router(waiters.router, prefix="/api")
 
 @app.get("/api/kitchen-tickets")
 async def kitchen_tickets_alias(db: Session = Depends(get_session)):
@@ -241,6 +243,11 @@ async def serve_login():
 @app.get("/")
 async def root():
     return FileResponse(STATIC_DIR / "menu.html")
+
+@app.get("/waiter")
+async def serve_waiter():
+    waiter_path = STATIC_DIR / "waiter.html"
+    return FileResponse(waiter_path)
 
 class ConnectionManager:
     def __init__(self):

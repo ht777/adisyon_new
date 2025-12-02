@@ -326,14 +326,18 @@ async def get_table_details(table_id: int, db: Session = Depends(get_session)):
     table = db.query(Table).filter(Table.id == table_id).first()
     if not table:
         raise HTTPException(status_code=404, detail="Masa bulunamadı")
-    orders = db.query(Order).filter(Order.table_id == table_id).order_by(Order.created_at.asc()).all()
+    
+    # Sadece aktif (teslim edilmemiş ve iptal edilmemiş) siparişleri getir
+    orders = db.query(Order).filter(
+        Order.table_id == table_id,
+        Order.status.in_([OrderStatus.BEKLIYOR, OrderStatus.HAZIRLANIYOR, OrderStatus.HAZIR])
+    ).order_by(Order.created_at.asc()).all()
+    
     arrival_time = None
     total = 0.0
     order_list = []
     for o in orders:
-        status = (o.status.value if o.status else "").lower()
-        if status not in ["cancelled", "iptal"]:
-            total += float(o.total_amount or 0.0)
+        total += float(o.total_amount or 0.0)
         if arrival_time is None:
             arrival_time = o.created_at
         items = []
@@ -348,8 +352,10 @@ async def get_table_details(table_id: int, db: Session = Depends(get_session)):
             })
         order_list.append({
             "id": o.id,
+            "daily_order_number": o.daily_order_number,
             "status": o.status.value if o.status else None,
             "created_at": o.created_at.isoformat(),
+            "total_amount": float(o.total_amount or 0.0),
             "customer_notes": o.customer_notes,
             "items": items
         })
@@ -371,15 +377,29 @@ async def print_bill(table_id: int, db: Session = Depends(get_session)):
     logging.getLogger("printer").info(f"Printing bill for table #{table.number}")
     return {"message": "Bill printing triggered", "table_id": table_id}
 
+class CloseTableRequest(BaseModel):
+    payment_method: Optional[str] = None  # "cash" veya "card"
+
 @router.post("/close/{table_id}")
-async def close_table(table_id: int, db: Session = Depends(get_session)):
+async def close_table(table_id: int, request: CloseTableRequest = None, db: Session = Depends(get_session)):
     table = db.query(Table).filter(Table.id == table_id).first()
     if not table:
         raise HTTPException(status_code=404, detail="Masa bulunamadı")
+    
+    # Ödeme yöntemini al (request body veya None)
+    payment_method = None
+    if request and request.payment_method:
+        if request.payment_method in ["cash", "card"]:
+            payment_method = request.payment_method
+    
     orders = db.query(Order).filter(Order.table_id == table_id).all()
     for o in orders:
         if o.status not in [OrderStatus.TESLIM_EDILDI, OrderStatus.IPTAL]:
             o.status = OrderStatus.TESLIM_EDILDI
+            # Ödeme yöntemini kaydet
+            if payment_method:
+                o.payment_method = payment_method
+    
     s = db.query(TableState).filter(TableState.table_id == table_id).first()
     if not s:
         s = TableState(table_id=table_id, is_occupied=False)
@@ -387,4 +407,4 @@ async def close_table(table_id: int, db: Session = Depends(get_session)):
     else:
         s.is_occupied = False
     db.commit()
-    return {"message": "Masa kapatıldı", "table_id": table_id}
+    return {"message": "Masa kapatıldı", "table_id": table_id, "payment_method": payment_method}

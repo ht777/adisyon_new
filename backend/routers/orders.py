@@ -1,10 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from models import Order, OrderItem, OrderStatus, Table, Product, TableState, get_session
 from auth import require_role, get_current_active_user, optional_current_user
 from models import UserRole
-from datetime import datetime
+from datetime import datetime, date
 from websocket_utils import broadcast_order_update, broadcast_to_admin
 from models import StockMovement, MovementType
 from pydantic import BaseModel
@@ -12,6 +13,20 @@ import logging
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 logger = logging.getLogger("printer")
+
+def get_next_daily_order_number(db: Session) -> int:
+    """Bugün için bir sonraki sipariş numarasını döndürür (her gün 1'den başlar)"""
+    today = date.today()
+    today_start = datetime.combine(today, datetime.min.time())
+    today_end = datetime.combine(today, datetime.max.time())
+    
+    # Bugünkü en yüksek daily_order_number'ı bul
+    max_num = db.query(func.max(Order.daily_order_number)).filter(
+        Order.created_at >= today_start,
+        Order.created_at <= today_end
+    ).scalar()
+    
+    return (max_num or 0) + 1
 
 # Pydantic models (Diğer fonksiyonlardan eksik kalanlar)
 class OrderItemCreate(BaseModel):
@@ -93,9 +108,12 @@ async def get_kitchen_tickets(db: Session = Depends(get_session)):
                 "subtotal": item.subtotal
             })
         table_name = order.table.name if order.table else "Masa Bilinmiyor"
+        table_number = order.table.number if order.table else 0
         result.append({
             "id": order.id,
             "table_name": table_name,
+            "table_number": table_number,
+            "daily_order_number": order.daily_order_number,
             "status": order.status,
             "customer_notes": order.customer_notes,
             "created_at": order.created_at.isoformat(),
@@ -114,15 +132,34 @@ async def get_order_stats(db: Session = Depends(get_session)):
     return {"total_orders": db.query(Order).count()}
 
 @router.post("", response_model=OrderResponse)
-async def create_order(order: OrderCreate, db: Session = Depends(get_session)):
+async def create_order(order: OrderCreate, db: Session = Depends(get_session), current_user = Depends(optional_current_user)):
     # FIX: Masayı table_number ile bul
     table = db.query(Table).filter(Table.number == order.table_number).first()
     if not table: raise HTTPException(status_code=404, detail=f"Table with number {order.table_number} not found")
     
-    new_order = Order(table_id=table.id, customer_notes=order.customer_notes, status=OrderStatus.BEKLIYOR)
+    # Günlük sipariş numarası al
+    daily_num = get_next_daily_order_number(db)
+    
+    # Garson ID'sini al (eğer giriş yapmışsa)
+    waiter_id = current_user.id if current_user else None
+    
+    new_order = Order(table_id=table.id, waiter_id=waiter_id, customer_notes=order.customer_notes, status=OrderStatus.BEKLIYOR, daily_order_number=daily_num)
     db.add(new_order)
     db.commit()
     db.refresh(new_order)
+    
+    # Garson puanı ekle (sipariş başına 1 puan)
+    if waiter_id:
+        try:
+            from models import UserStats
+            stats = db.query(UserStats).filter(UserStats.user_id == waiter_id).first()
+            if not stats:
+                stats = UserStats(user_id=waiter_id, total_orders=0, total_sales_score=0.0)
+                db.add(stats)
+            stats.total_orders = (stats.total_orders or 0) + 1
+            db.commit()
+        except Exception:
+            pass
     
     total_amount = 0.0
     order_items = []
@@ -192,7 +229,8 @@ async def get_orders(skip: int = Query(0, ge=0), limit: int = Query(100, ge=1, l
             p_img = item.product.image_url if item.product else ""
             items.append({"id": item.id, "product_id": item.product_id, "quantity": item.quantity, "unit_price": item.unit_price, "extras": item.extras, "subtotal": item.subtotal, "product": {"id": item.product_id, "name": p_name, "description": p_desc, "price": item.unit_price, "image_url": p_img}})
         table_name = order.table.name if order.table else "Masa Bilinmiyor"
-        result.append({"id": order.id, "table_id": order.table_id, "table_name": table_name, "status": order.status, "customer_notes": order.customer_notes, "total_amount": order.total_amount, "created_at": order.created_at, "updated_at": order.updated_at, "items": items})
+        payment_method = getattr(order, 'payment_method', None)
+        result.append({"id": order.id, "table_id": order.table_id, "table_name": table_name, "status": order.status, "customer_notes": order.customer_notes, "total_amount": order.total_amount, "payment_method": payment_method, "created_at": order.created_at, "updated_at": order.updated_at, "items": items})
     return result
 
 @router.get("/{order_id}", response_model=OrderResponse)
@@ -230,26 +268,28 @@ async def update_order_status(
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order: raise HTTPException(status_code=404, detail="Order not found")
     
+    old_status = order.status
     order.status = new_status_enum
     db.commit()
+    
+    # İptal edildiğinde garson puanını düşür
     try:
-        if new_status_enum == OrderStatus.TESLIM_EDILDI and current_user is not None:
-            from models import UserStats
-            stats = db.query(UserStats).filter(UserStats.user_id == current_user.id).first()
-            if not stats:
-                stats = UserStats(user_id=current_user.id)
-                db.add(stats)
-                db.flush()
-            amt = float(order.total_amount or 0.0)
-            tips = 0.0
-            stats.total_sales_score = float(stats.total_sales_score or 0.0) + amt
-            stats.total_tips_collected = float(stats.total_tips_collected or 0.0) + tips
-            db.commit()
+        from models import UserStats
+        if new_status_enum == OrderStatus.IPTAL and order.waiter_id:
+            stats = db.query(UserStats).filter(UserStats.user_id == order.waiter_id).first()
+            if stats and (stats.total_orders or 0) > 0:
+                stats.total_orders = (stats.total_orders or 0) - 1
+                db.commit()
     except Exception:
         pass
     
     table_name = order.table.name if order.table else "Masa Bilinmiyor"
-    await broadcast_order_update({"id": order.id, "status": order.status, "table_name": table_name}, "order_updated")
+    
+    # İptal edilen siparişler için özel event gönder (mutfaktan silinmesi için)
+    if new_status_enum == OrderStatus.IPTAL:
+        await broadcast_order_update({"id": order.id, "status": "cancelled", "table_name": table_name}, "order_cancelled")
+    else:
+        await broadcast_order_update({"id": order.id, "status": order.status, "table_name": table_name}, "order_updated")
     
     return {
         "id": order.id, "table_id": order.table_id, "table_name": table_name,

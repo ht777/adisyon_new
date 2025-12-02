@@ -209,10 +209,16 @@
 
         function renderProducts(filterId) {
             const container = document.getElementById('productList');
-            let filtered = products;
+            // Önce stok takibi açık ve stoğu 0 olan ürünleri filtrele
+            let filtered = products.filter(p => {
+                // Stok takibi kapalıysa göster
+                if (!p.track_stock) return true;
+                // Stok takibi açıksa ve stok > 0 ise göster
+                return (p.stock || 0) > 0;
+            });
 
             if (filterId !== 'Tümü') {
-                filtered = products.filter(p => 
+                filtered = filtered.filter(p => 
                     (p.category && p.category.id == filterId) || 
                     (p.category_id == filterId)
                 );

@@ -34,11 +34,17 @@ async def get_products(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     category: Optional[str] = None,
-    active_only: bool = Query(True)
+    active_only: bool = Query(True),
+    available_only: bool = Query(False)  # Stoğu 0 olanları filtrele
 ):
     """Tüm ürünleri getir"""
     try:
         products = db_manager.get_products(skip=skip, limit=limit, category=category, active_only=active_only)
+        
+        # Stoğu 0 olan ve stok takibi açık ürünleri filtrele
+        if available_only:
+            products = [p for p in products if not p.track_stock or (p.stock or 0) > 0]
+        
         return {"products": [{
             "id": p.id,
             "name": p.name,
@@ -46,9 +52,11 @@ async def get_products(
             "price": p.price,
             "discounted_price": p.discounted_price,
             "category": p.category,
+            "category_id": p.category_id,
             "features": p.features,
             "image_url": p.image_url,
             "stock": p.stock,
+            "track_stock": p.track_stock,
             "is_active": p.is_active,
             "created_at": p.created_at.isoformat()
         } for p in products]}

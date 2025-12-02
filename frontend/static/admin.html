@@ -15,6 +15,25 @@
         /* Toast Bildirim */
         .toast-notification { animation: slideInRight 0.5s ease-out forwards; }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
+        /* Kritik Stok Uyarısı Animasyonu */
+        @keyframes criticalPulse {
+            0%, 100% { border-color: #ef4444; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            50% { border-color: #dc2626; box-shadow: 0 0 15px 5px rgba(239, 68, 68, 0.4); }
+        }
+        .critical-stock-alert {
+            animation: criticalPulse 1.5s ease-in-out infinite;
+            border: 3px solid #ef4444;
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+        }
+        
+        /* Bildirim Animasyonu */
+        @keyframes pulseOnce {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        .animate-pulse-once { animation: pulseOnce 0.3s ease-out; }
     </style>
 </head>
 <body class="bg-gray-50 flex h-screen overflow-hidden font-sans">
@@ -41,6 +60,7 @@
             <button onclick="showSection('settings')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition flex items-center gap-3"><i class="fas fa-cog w-5 text-center"></i> Ayarlar</button>
             <button onclick="showSection('league')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition flex items-center gap-3"><i class="fas fa-trophy w-5 text-center"></i> Garson Ligi</button>
             <button onclick="showSection('stock')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition flex items-center gap-3"><i class="fas fa-boxes-stacked w-5 text-center"></i> Stok Yönetimi</button>
+            <button onclick="showSection('waiters')" class="nav-item w-full text-left px-6 py-3 hover:bg-slate-800 transition flex items-center gap-3"><i class="fas fa-user-friends w-5 text-center"></i> Garsonlar</button>
         </nav>
         
         <div class="p-4 border-t border-slate-800">
@@ -54,6 +74,12 @@
                 <h2 id="pageTitle" class="text-2xl font-bold text-gray-800">Dashboard</h2>
                 <p class="text-sm text-gray-500 mt-1">Sistem durumu ve yönetim paneli.</p>
             </div>
+            
+            <!-- Bildirim Paneli -->
+            <div id="notificationPanel" class="flex-1 mx-6 max-w-2xl">
+                <div id="notificationList" class="flex flex-wrap gap-2 justify-end"></div>
+            </div>
+            
             <div class="flex items-center gap-4">
                 <div class="text-right hidden sm:block">
                     <div class="text-sm font-bold text-gray-800">Yönetici</div>
@@ -76,6 +102,23 @@
                     <div class="bg-white p-6 rounded-xl shadow-sm border-b-4 border-orange-500"><p class="text-gray-500 text-xs font-bold uppercase">Aktif Sipariş</p><p class="text-3xl font-bold text-slate-800 mt-1" id="statActiveOrders">0</p></div>
                     <div class="bg-white p-6 rounded-xl shadow-sm border-b-4 border-purple-500"><p class="text-gray-500 text-xs font-bold uppercase">Menü Ürünleri</p><p class="text-3xl font-bold text-slate-800 mt-1" id="statProducts">-</p></div>
                 </div>
+                
+                <!-- Kritik Stok Uyarıları - Dashboard -->
+                <div id="criticalStockAlertsDashboard" class="mb-6 hidden">
+                    <div class="flex items-center gap-2 mb-3">
+                        <i class="fas fa-exclamation-triangle text-red-500 text-xl"></i>
+                        <h3 class="font-bold text-red-600">Kritik Stok Uyarıları</h3>
+                    </div>
+                    <div id="criticalStockGridDashboard" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+                </div>
+                
+                <!-- Açık Masalar - Grafiğin üstünde -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
+                    <h3 class="font-bold text-gray-800 mb-3">Açık Masalar</h3>
+                    <div id="openTablesGridAdmin" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
+                
+                <!-- Haftalık Satış Grafiği -->
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                     <h3 class="font-bold text-gray-800 mb-6">Haftalık Satış Grafiği</h3>
                     <div class="w-full h-80"><canvas id="salesChart"></canvas></div>
@@ -89,7 +132,7 @@
                 </div>
                 <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
                     <table class="min-w-full divide-y divide-gray-100">
-                        <thead class="bg-gray-50"><tr><th class="p-4 text-left">Resim</th><th class="p-4 text-left">Ürün Adı</th><th class="p-4 text-left">Kategori</th><th class="p-4 text-left">Fiyat</th><th class="p-4 text-center">İşlem</th></tr></thead>
+                        <thead class="bg-gray-50"><tr><th class="p-4 text-left">Resim</th><th class="p-4 text-left">Ürün Adı</th><th class="p-4 text-left">Kategori</th><th class="p-4 text-left">Fiyat</th><th class="p-4 text-center" style="min-width:180px">İşlemler</th></tr></thead>
                         <tbody id="productsTable" class="divide-y divide-gray-100"></tbody>
                     </table>
                 </div>
@@ -109,6 +152,10 @@
             </div>
 
             <div id="tablesSection" class="section hidden">
+                <div class="mb-6">
+                    <h3 class="text-lg font-bold text-gray-800">Açık Masalar</h3>
+                    <div id="openTablesGridTables" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3"></div>
+                </div>
                 <div class="flex justify-between items-center mb-6">
                     <h3 class="text-lg font-bold text-gray-800">Masa Yönetimi</h3>
                     <button onclick="addTable()" class="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition shadow-lg">Yeni Masa</button>
@@ -123,67 +170,173 @@
             
             <div id="ordersSection" class="section hidden">
                 <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-lg font-bold text-gray-800">Tüm Siparişler</h3>
-                    <button onclick="loadOrders()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition">Yenile</button>
+                    <h3 class="text-lg font-bold text-gray-800">Siparişler</h3>
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-2 bg-white border rounded-lg p-1">
+                            <button onclick="setOrdersFilter('today')" id="ordersFilterToday" class="px-3 py-1.5 rounded text-sm font-medium bg-blue-600 text-white">Bugün</button>
+                            <button onclick="setOrdersFilter('yesterday')" id="ordersFilterYesterday" class="px-3 py-1.5 rounded text-sm font-medium text-gray-600 hover:bg-gray-100">Dün</button>
+                            <button onclick="setOrdersFilter('week')" id="ordersFilterWeek" class="px-3 py-1.5 rounded text-sm font-medium text-gray-600 hover:bg-gray-100">Bu Hafta</button>
+                            <button onclick="setOrdersFilter('custom')" id="ordersFilterCustom" class="px-3 py-1.5 rounded text-sm font-medium text-gray-600 hover:bg-gray-100">Tarih Seç</button>
+                        </div>
+                        <button onclick="loadOrders()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition"><i class="fas fa-sync-alt"></i></button>
+                    </div>
                 </div>
+                
+                <!-- Tarih Seçici (Custom için) -->
+                <div id="ordersDatePicker" class="bg-white p-4 rounded-xl shadow-sm mb-4 border border-gray-100 hidden">
+                    <div class="flex gap-4 items-end flex-wrap">
+                        <div>
+                            <label class="text-sm text-gray-500 block mb-1">Başlangıç</label>
+                            <input type="date" id="ordersStartDate" class="border border-gray-300 p-2 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="text-sm text-gray-500 block mb-1">Bitiş</label>
+                            <input type="date" id="ordersEndDate" class="border border-gray-300 p-2 rounded-lg">
+                        </div>
+                        <button onclick="loadOrdersByDate()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Getir</button>
+                    </div>
+                </div>
+                
                 <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
                     <table class="min-w-full divide-y divide-gray-100">
-                        <thead class="bg-gray-50"><tr><th class="p-4 text-left">ID</th><th class="p-4 text-left">Masa</th><th class="p-4 text-left">Tutar</th><th class="p-4 text-left">Durum</th><th class="p-4 text-left">Tarih</th><th class="p-4 text-center">İşlem</th></tr></thead>
+                        <thead class="bg-gray-50"><tr><th class="p-4 text-left">ID</th><th class="p-4 text-left">Masa</th><th class="p-4 text-left">Tutar</th><th class="p-4 text-left">Ödeme</th><th class="p-4 text-left">Durum</th><th class="p-4 text-left">Tarih/Saat</th><th class="p-4 text-center">İşlem</th></tr></thead>
                         <tbody id="ordersTable" class="divide-y divide-gray-100"></tbody>
                     </table>
                 </div>
             </div>
 
             <div id="reportsSection" class="section hidden">
-                <div class="bg-white p-6 rounded-xl shadow-sm mb-6 border border-gray-100">
-                    <h3 class="font-bold text-gray-800 mb-4">Tarih Aralığı Seç</h3>
+                <!-- Rapor Tipi Seçimi -->
+                <div class="flex gap-2 mb-6 bg-white p-2 rounded-xl shadow-sm border">
+                    <button onclick="setReportType('daily')" id="reportTypeDaily" class="flex-1 py-3 px-4 rounded-lg font-bold transition bg-blue-600 text-white">📅 Günlük</button>
+                    <button onclick="setReportType('weekly')" id="reportTypeWeekly" class="flex-1 py-3 px-4 rounded-lg font-bold transition text-gray-600 hover:bg-gray-100">📊 Haftalık</button>
+                    <button onclick="setReportType('monthly')" id="reportTypeMonthly" class="flex-1 py-3 px-4 rounded-lg font-bold transition text-gray-600 hover:bg-gray-100">📈 Aylık</button>
+                    <button onclick="setReportType('history')" id="reportTypeHistory" class="flex-1 py-3 px-4 rounded-lg font-bold transition text-gray-600 hover:bg-gray-100">📁 Geçmiş</button>
+                </div>
+                
+                <!-- Tarih Seçici -->
+                <div id="reportDatePicker" class="bg-white p-4 rounded-xl shadow-sm mb-6 border">
                     <div class="flex gap-4 items-end flex-wrap">
-                        <div>
-                            <label class="text-sm text-gray-500 block mb-1">Başlangıç</label>
-                            <input type="date" id="reportStart" class="block border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        <div id="dailyDatePicker">
+                            <label class="text-sm text-gray-500 block mb-1">Tarih</label>
+                            <input type="date" id="reportDate" class="border border-gray-300 p-2 rounded-lg">
                         </div>
-                        <div>
-                            <label class="text-sm text-gray-500 block mb-1">Bitiş</label>
-                            <input type="date" id="reportEnd" class="block border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-                        </div>
-                        <button onclick="loadReports()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition shadow-md">Raporla</button>
+                        <button onclick="loadComprehensiveReport()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition shadow-md flex items-center gap-2">
+                            <i class="fas fa-sync-alt"></i> Rapor Getir
+                        </button>
                     </div>
                 </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-green-500">
-                        <p class="text-gray-500 text-sm font-medium">Toplam Ciro</p>
-                        <h3 class="text-2xl font-bold text-gray-800 mt-1" id="repTotalRevenue">0.00 ₺</h3>
+                <!-- Özet Kartları -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-gradient-to-br from-green-500 to-green-600 p-5 rounded-xl text-white shadow-lg">
+                        <p class="text-green-100 text-xs font-bold uppercase">Toplam Ciro</p>
+                        <p class="text-2xl font-bold mt-1" id="repTotalRevenue">0.00 ₺</p>
+                        <div class="mt-2 text-xs text-green-100">
+                            <span>💵 <span id="repCashTotal">0</span></span>
+                            <span class="ml-2">💳 <span id="repCardTotal">0</span></span>
+                        </div>
                     </div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-500">
-                        <p class="text-gray-500 text-sm font-medium">Toplam Sipariş</p>
-                        <h3 class="text-2xl font-bold text-gray-800 mt-1" id="repTotalOrders">0</h3>
+                    <div class="bg-gradient-to-br from-blue-500 to-blue-600 p-5 rounded-xl text-white shadow-lg">
+                        <p class="text-blue-100 text-xs font-bold uppercase">Sipariş</p>
+                        <p class="text-2xl font-bold mt-1" id="repTotalOrders">0</p>
+                        <p class="text-xs text-blue-100 mt-2">İptal: <span id="repCancelledOrders">0</span></p>
                     </div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-purple-500">
-                        <p class="text-gray-500 text-sm font-medium">Ortalama Sepet</p>
-                        <h3 class="text-2xl font-bold text-gray-800 mt-1" id="repAvgOrder">0.00 ₺</h3>
+                    <div class="bg-gradient-to-br from-purple-500 to-purple-600 p-5 rounded-xl text-white shadow-lg">
+                        <p class="text-purple-100 text-xs font-bold uppercase">Ort. Sepet</p>
+                        <p class="text-2xl font-bold mt-1" id="repAvgOrder">0.00 ₺</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-orange-500 to-orange-600 p-5 rounded-xl text-white shadow-lg">
+                        <p class="text-orange-100 text-xs font-bold uppercase">Değişim</p>
+                        <p class="text-2xl font-bold mt-1" id="repChange">-</p>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <h4 class="font-bold text-gray-700 mb-4 flex items-center gap-2"><i class="fas fa-crown text-yellow-500"></i> En Çok Satan Ürünler</h4>
-                        <div class="overflow-auto max-h-60">
-                            <table class="w-full text-sm text-left">
-                                <thead class="bg-gray-50 text-gray-500"><tr><th class="p-2">Ürün</th><th class="p-2">Adet</th><th class="p-2 text-right">Tutar</th></tr></thead>
-                                <tbody id="topProductsTable" class="divide-y"></tbody>
-                            </table>
+                <!-- Ana İçerik -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    <!-- En Çok Satanlar -->
+                    <div class="bg-white p-5 rounded-xl shadow-sm border">
+                        <h4 class="font-bold text-gray-700 mb-3 flex items-center gap-2">🏆 En Çok Satanlar</h4>
+                        <div class="space-y-2 max-h-48 overflow-y-auto" id="topProductsList"></div>
+                    </div>
+                    <!-- En Az Satanlar -->
+                    <div class="bg-white p-5 rounded-xl shadow-sm border">
+                        <h4 class="font-bold text-gray-700 mb-3 flex items-center gap-2">📉 En Az Satanlar</h4>
+                        <div class="space-y-2 max-h-48 overflow-y-auto" id="lowProductsList"></div>
+                    </div>
+                    <!-- Garson Performansı -->
+                    <div class="bg-white p-5 rounded-xl shadow-sm border">
+                        <h4 class="font-bold text-gray-700 mb-3 flex items-center gap-2">👨‍🍳 Garson Performansı</h4>
+                        <div class="space-y-2 max-h-48 overflow-y-auto" id="waiterStatsList"></div>
+                    </div>
+                </div>
+
+                <!-- Grafik ve Stok -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-white p-5 rounded-xl shadow-sm border">
+                        <div class="flex justify-between items-center mb-4">
+                            <h4 class="font-bold text-gray-700">📊 Satış Performansı</h4>
+                            <div class="flex gap-1 bg-gray-100 p-1 rounded-lg">
+                                <button onclick="setChartType('bar')" id="chartTypeBar" class="px-3 py-1.5 text-xs rounded-md bg-blue-600 text-white font-medium transition">Bar</button>
+                                <button onclick="setChartType('line')" id="chartTypeLine" class="px-3 py-1.5 text-xs rounded-md bg-transparent text-gray-600 font-medium hover:bg-gray-200 transition">Çizgi</button>
+                                <button onclick="setChartType('doughnut')" id="chartTypeDoughnut" class="px-3 py-1.5 text-xs rounded-md bg-transparent text-gray-600 font-medium hover:bg-gray-200 transition">Pasta</button>
+                            </div>
+                        </div>
+                        <div class="h-64 relative"><canvas id="reportChart"></canvas></div>
+                        <div class="mt-4 grid grid-cols-3 gap-2 text-xs">
+                            <div class="bg-gradient-to-br from-green-50 to-green-100 p-3 rounded-lg text-center border border-green-200">
+                                <div class="text-green-600 font-bold text-sm" id="chartMaxDay">-</div>
+                                <div class="text-gray-500 mt-1">En İyi Gün</div>
+                            </div>
+                            <div class="bg-gradient-to-br from-red-50 to-red-100 p-3 rounded-lg text-center border border-red-200">
+                                <div class="text-red-600 font-bold text-sm" id="chartMinDay">-</div>
+                                <div class="text-gray-500 mt-1">En Düşük Gün</div>
+                            </div>
+                            <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded-lg text-center border border-blue-200">
+                                <div class="text-blue-600 font-bold text-sm" id="chartAvgDay">-</div>
+                                <div class="text-gray-500 mt-1">Günlük Ort.</div>
+                            </div>
                         </div>
                     </div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <h4 class="font-bold text-gray-700 mb-4">Günlük Satış Grafiği</h4>
-                        <div class="h-60"><canvas id="reportChart"></canvas></div>
-                        <div class="mt-6 flex gap-3">
-                            <button onclick="loadProductMatrix()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Ürün Matrisi</button>
-                            <button onclick="downloadClosingPdf()" class="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900">Kapanış PDF</button>
+                    <div class="bg-white p-5 rounded-xl shadow-sm border">
+                        <h4 class="font-bold text-gray-700 mb-3 flex items-center gap-2">📦 Kritik Stok</h4>
+                        <div class="space-y-2 max-h-48 overflow-y-auto" id="criticalStockList"></div>
+                        <div class="mt-4 pt-4 border-t text-sm text-gray-500">
+                            <span>Toplam Masa: <strong id="repTotalTables">0</strong></span>
+                            <span class="ml-4">Toplam Ürün: <strong id="repTotalProducts">0</strong></span>
                         </div>
-                        <div id="aiAnalysis" class="mt-4 text-sm text-gray-600"></div>
                     </div>
+                </div>
+
+                <!-- AI Analizi -->
+                <div class="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 rounded-xl shadow-lg text-white mb-6">
+                    <div class="flex justify-between items-start mb-3">
+                        <h4 class="font-bold text-lg flex items-center gap-2">🤖 AI Analizi ve Öneriler</h4>
+                        <button onclick="loadComprehensiveReport()" class="text-xs bg-white/20 px-3 py-1 rounded-full hover:bg-white/30 transition">
+                            <i class="fas fa-sync-alt"></i> Yenile
+                        </button>
+                    </div>
+                    <div id="aiAnalysis" class="text-indigo-100 whitespace-pre-line leading-relaxed text-sm">Rapor yükleniyor...</div>
+                </div>
+
+                <!-- Geçmiş Raporlar (History modu için) -->
+                <div id="historySection" class="hidden">
+                    <div class="bg-white p-5 rounded-xl shadow-sm border">
+                        <h4 class="font-bold text-gray-700 mb-4">📁 Geçmiş Günler</h4>
+                        <div class="space-y-2" id="historyList"></div>
+                    </div>
+                </div>
+
+                <!-- Aksiyon Butonları -->
+                <div id="reportActionButtons" class="flex gap-3 flex-wrap">
+                    <button onclick="downloadReportPdf()" id="downloadPdfBtn" class="px-5 py-3 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition shadow-lg flex items-center gap-2">
+                        <i class="fas fa-file-pdf"></i> <span id="pdfBtnText">Kapanış PDF İndir</span>
+                    </button>
+                </div>
+                
+                <!-- PDF İndirme Durumu -->
+                <div id="pdfDownloadStatus" class="hidden mt-3 p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 text-sm">
+                    <i class="fas fa-spinner fa-spin mr-2"></i> PDF oluşturuluyor...
                 </div>
             </div>
 
@@ -234,11 +387,11 @@
 
             <div id="leagueSection" class="section hidden">
                 <div class="bg-white p-6 rounded-xl shadow-sm mb-6 border border-gray-100">
-                    <h3 class="text-lg font-bold text-gray-800">Garson Ligi</h3>
-                    <p class="text-sm text-gray-500 mb-4">Tamamlanan siparişlerden toplanan puanlar ve bahşişler.</p>
+                    <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2"><i class="fas fa-trophy text-yellow-500"></i> Garson Ligi</h3>
+                    <p class="text-sm text-gray-500 mb-4">Garsonların sipariş bazlı performans sıralaması.</p>
                     <div class="overflow-auto">
                         <table class="min-w-full text-sm">
-                            <thead class="bg-gray-50"><tr><th class="p-3 text-left">Kullanıcı</th><th class="p-3 text-right">Satış Puanı</th><th class="p-3 text-right">Bahşiş</th></tr></thead>
+                            <thead class="bg-gray-50"><tr><th class="p-3 text-center w-16">Sıra</th><th class="p-3 text-left">Garson</th><th class="p-3 text-right">Puan</th></tr></thead>
                             <tbody id="leagueTable" class="divide-y"></tbody>
                         </table>
                     </div>
@@ -246,6 +399,15 @@
             </div>
 
             <div id="stockSection" class="section hidden">
+                <!-- Kritik Stok Uyarıları - Stok Sekmesi -->
+                <div id="criticalStockAlertsStock" class="mb-6 hidden">
+                    <div class="flex items-center gap-2 mb-3">
+                        <i class="fas fa-exclamation-triangle text-red-500 text-xl"></i>
+                        <h3 class="font-bold text-red-600">Kritik Stok Uyarıları</h3>
+                    </div>
+                    <div id="criticalStockGridStock" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+                </div>
+                
                 <div class="flex justify-between items-center mb-6">
                     <h3 class="text-lg font-bold text-gray-800">Stok Yönetimi</h3>
                     <button onclick="loadStock()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition">Yenile</button>
@@ -258,7 +420,79 @@
                 </div>
             </div>
 
+            <div id="waitersSection" class="section hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-lg font-bold text-gray-800">Garsonlar</h3>
+                    <div class="flex gap-2 items-end">
+                        <input id="newWaiterName" class="border p-2 rounded" placeholder="Ad Soyad">
+                        <button onclick="addWaiter()" class="bg-blue-600 text-white px-4 py-2 rounded">GARSON EKLE</button>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+                    <table class="min-w-full divide-y divide-gray-100">
+                        <thead class="bg-gray-50"><tr><th class="p-4 text-left">Ad Soyad</th><th class="p-4 text-left">Kullanıcı</th><th class="p-4 text-center">İşlem</th></tr></thead>
+                        <tbody id="waitersTable" class="divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+            </div>
+
         </main>
+    </div>
+
+    <div id="tableActionsModalAdmin" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-xl w-[90%] max-w-xl p-4">
+            <div class="flex justify-between items-center border-b pb-2 mb-3">
+                <div class="text-lg font-bold" id="tamTitleAdmin">Masa</div>
+                <button onclick="closeTableActions()" class="px-2 py-1 bg-gray-200 rounded">Kapat</button>
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+                <button onclick="adminAddProductFromActions()" class="p-4 bg-green-100 border border-green-300 rounded-lg font-medium text-green-700 hover:bg-green-200 transition">➕ Ürün Ekle</button>
+                <button onclick="adminActionDetails()" class="p-4 bg-orange-50 border rounded hover:bg-orange-100 transition">Masa detayı</button>
+                <button onclick="adminActionClose()" class="p-4 bg-green-50 border rounded hover:bg-green-100 transition">Hesap kes</button>
+                <button onclick="adminActionTransfer()" class="p-4 bg-blue-50 border rounded hover:bg-blue-100 transition">Masa değiştir</button>
+                <button onclick="adminActionMerge()" class="p-4 bg-gray-50 border rounded hover:bg-gray-100 transition">Masa birleştir</button>
+                <button onclick="adminActionPrint()" class="p-4 bg-yellow-50 border rounded hover:bg-yellow-100 transition">Yazdır</button>
+                <button onclick="adminActionCancel()" class="p-4 bg-red-50 border rounded hover:bg-red-100 transition">İptal et</button>
+            </div>
+        </div>
+    </div>
+    <div id="paymentModalAdmin" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-xl w-[90%] max-w-sm p-4">
+            <div class="flex justify-between items-center border-b pb-2 mb-3">
+                <div class="text-lg font-bold">Ödeme Şekli</div>
+                <button onclick="closePaymentModal()" class="px-2 py-1 bg-gray-200 rounded">Kapat</button>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="confirmCloseTable('cash')" class="p-4 bg-gray-50 border rounded">Nakit</button>
+                <button onclick="confirmCloseTable('card')" class="p-4 bg-gray-50 border rounded">Kredi Kartı</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Ürün Ekleme Modalı -->
+    <div id="addProductModalAdmin" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-2xl w-[95%] max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="flex justify-between items-center border-b p-4 bg-green-50">
+                <div>
+                    <div class="text-lg font-bold text-green-800" id="addProductTitle">Masa X - Ürün Ekle</div>
+                    <div class="text-sm text-green-600">Eklemek istediğiniz ürünleri seçin</div>
+                </div>
+                <button onclick="closeAddProductModal()" class="px-3 py-1.5 bg-gray-200 rounded-lg hover:bg-gray-300">✕</button>
+            </div>
+            <div class="p-4 border-b">
+                <div id="adminCategories" class="flex gap-2 flex-wrap"></div>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4">
+                <div id="adminProducts" class="grid grid-cols-2 md:grid-cols-3 gap-3"></div>
+            </div>
+            <div class="border-t p-4 bg-gray-50">
+                <div class="mb-3">
+                    <div class="text-sm text-gray-500 mb-2">Sepet</div>
+                    <div id="adminCartSummary" class="text-sm text-gray-400">Sepet boş</div>
+                </div>
+                <button onclick="submitAdminOrder()" class="w-full py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition">✓ Siparişi Gönder</button>
+            </div>
+        </div>
     </div>
 
     <div id="productModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center z-50">
@@ -308,13 +542,19 @@
 
             // Sayfa yükleme mantığı
             if(id === 'dashboard') loadDashboard();
-            else if(id === 'reports') loadReports(); 
+            else if(id === 'reports') { 
+                // Tarih input'una bugünü ayarla
+                const dateInput = document.getElementById('reportDate');
+                if(dateInput && !dateInput.value) dateInput.value = new Date().toISOString().split('T')[0];
+                loadComprehensiveReport(); 
+            }
             else if(id === 'products') { loadCategories(false); loadProducts(); }
             else if(id === 'categories') loadCategories();
             else if(id === 'tables') loadTables();
             else if(id === 'orders') loadOrders();
             else if(id === 'league') loadLeague();
             else if(id === 'stock') loadStock();
+            else if(id === 'waiters') loadWaiters();
             else if(id === 'settings') loadSettings();
         }
 
@@ -342,6 +582,10 @@
                 document.getElementById('repTotalRevenue').innerText = (data.total_revenue || 0).toFixed(2) + ' ₺';
                 document.getElementById('repTotalOrders').innerText = data.total_orders || 0;
                 document.getElementById('repAvgOrder').innerText = (data.average_order || 0).toFixed(2) + ' ₺';
+                
+                // Ödeme yöntemi dağılımı
+                document.getElementById('repCashTotal').innerText = (data.cash_total || 0).toFixed(2) + ' ₺';
+                document.getElementById('repCardTotal').innerText = (data.card_total || 0).toFixed(2) + ' ₺';
 
                 // Tabloyu Doldur
                 const tbody = document.getElementById('topProductsTable');
@@ -389,6 +633,238 @@
             }
         }
 
+        let actionTableId=null; let actionTableNum=null;
+        function openTableActions(id, num){ actionTableId=id; actionTableNum=num; const m=document.getElementById('tableActionsModalAdmin'); document.getElementById('tamTitleAdmin').innerText=`Masa ${num}`; m.classList.remove('hidden'); m.classList.add('flex'); }
+        function closeTableActions(){ const m=document.getElementById('tableActionsModalAdmin'); m.classList.add('hidden'); m.classList.remove('flex'); }
+        async function adminActionDetails(){ 
+            showLoading(); 
+            try { 
+                const r = await fetch(`/api/tables/details/${actionTableId}`, {headers:getHeaders()}); 
+                const d = await r.json(); 
+                
+                // Aktif siparişleri filtrele
+                const activeOrders = (d.orders||[]).filter(o=>['pending','preparing','ready','bekliyor','hazirlaniyor','hazir'].includes((o.status||'').toLowerCase()));
+                
+                // Varış zamanı
+                const arrivalTime = d.arrival_time ? new Date(d.arrival_time).toLocaleString('tr-TR', {hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit'}) : '-';
+                
+                // Siparişleri detaylı göster
+                let ordersHtml = '';
+                if(activeOrders.length > 0) {
+                    ordersHtml = activeOrders.map((o, idx) => {
+                        const orderTime = o.created_at ? new Date(o.created_at).toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'}) : '-';
+                        const statusText = {'pending':'Bekliyor','preparing':'Hazırlanıyor','ready':'Hazır','bekliyor':'Bekliyor','hazirlaniyor':'Hazırlanıyor','hazir':'Hazır'}[o.status?.toLowerCase()] || o.status;
+                        const statusColor = {'pending':'orange','preparing':'blue','ready':'green','bekliyor':'orange','hazirlaniyor':'blue','hazir':'green'}[o.status?.toLowerCase()] || 'gray';
+                        
+                        const itemsHtml = (o.items||[]).map(i => `
+                            <div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
+                                <div class="flex-1">
+                                    <span class="font-medium">${i.name}</span>
+                                    <span class="text-gray-500 text-sm ml-2">x${i.quantity}</span>
+                                    ${i.extras && Object.keys(i.extras).length > 0 ? `<div class="text-xs text-gray-400">${JSON.stringify(i.extras)}</div>` : ''}
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-mono text-sm">${Number(i.unit_price||0).toFixed(2)} ₺</div>
+                                    <div class="font-mono font-bold">${Number(i.subtotal||0).toFixed(2)} ₺</div>
+                                </div>
+                            </div>
+                        `).join('');
+                        
+                        return `
+                            <div class="mb-4 p-3 bg-gray-50 rounded-lg">
+                                <div class="flex justify-between items-center mb-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-bold text-gray-700">Sipariş #${o.id}</span>
+                                        <span class="text-xs px-2 py-0.5 rounded bg-${statusColor}-100 text-${statusColor}-700">${statusText}</span>
+                                    </div>
+                                    <span class="text-sm text-gray-500"><i class="fas fa-clock mr-1"></i>${orderTime}</span>
+                                </div>
+                                ${o.customer_notes ? `<div class="text-sm text-amber-600 mb-2 p-2 bg-amber-50 rounded"><i class="fas fa-sticky-note mr-1"></i>${o.customer_notes}</div>` : ''}
+                                <div class="space-y-1">${itemsHtml}</div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    ordersHtml = '<div class="text-gray-400 text-sm text-center py-4">Aktif sipariş yok</div>';
+                }
+                
+                const w = document.createElement('div'); 
+                w.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50'; 
+                w.innerHTML = `
+                    <div class='bg-white rounded-xl w-[90%] max-w-2xl max-h-[90vh] overflow-hidden flex flex-col'>
+                        <div class='flex justify-between items-center border-b p-4'>
+                            <div>
+                                <div class='text-lg font-bold'>Masa ${actionTableNum} - Hesap Detayı</div>
+                                <div class='text-sm text-gray-500'><i class="fas fa-clock mr-1"></i>Açılış: ${arrivalTime}</div>
+                            </div>
+                            <button class='px-3 py-1.5 bg-gray-200 rounded-lg hover:bg-gray-300' onclick='this.closest(".fixed").remove()'>Kapat</button>
+                        </div>
+                        <div class='flex-1 overflow-y-auto p-4'>
+                            ${ordersHtml}
+                        </div>
+                        <div class='border-t p-4 bg-gray-50'>
+                            <div class='flex justify-between items-center'>
+                                <span class='font-bold text-lg'>Toplam Tutar</span>
+                                <span class='font-mono text-2xl font-bold text-green-600'>${Number(d.total_amount||0).toFixed(2)} ₺</span>
+                            </div>
+                        </div>
+                    </div>
+                `; 
+                document.body.appendChild(w); 
+            } catch(e) { console.error(e); } 
+            finally { hideLoading(); }
+        }
+        function adminActionClose(){ const m=document.getElementById('paymentModalAdmin'); m.classList.remove('hidden'); m.classList.add('flex'); }
+        function closePaymentModal(){ const m=document.getElementById('paymentModalAdmin'); m.classList.add('hidden'); m.classList.remove('flex'); }
+        async function confirmCloseTable(method){ showLoading(); try{ await fetch(`/api/tables/close/${actionTableId}`, {method:'POST', headers:getHeaders(), body:JSON.stringify({payment_method: method})}); }catch(e){} finally{ hideLoading(); closePaymentModal(); closeTableActions(); loadOpenTables(); showToast(method==='cash'?'Nakit':'Kart', method==='cash'?'green':'purple'); }}
+        async function adminActionPrint(){ showLoading(); try{ await fetch(`/api/tables/print-bill/${actionTableId}`, {method:'POST', headers:getHeaders()}); }catch(e){} finally{ hideLoading(); }}
+        async function adminActionTransfer(){ const tgt=prompt('Hedef masa numarası:'); if(!tgt) return; showLoading(); try{ const r=await fetch('/api/tables?active_only=false',{headers:getHeaders()}); const d=await r.json(); const t=d.find(x=>x.number==parseInt(tgt)); if(!t){ alert('Masa bulunamadı'); } else { await fetch(`/api/tables/transfer/${actionTableId}/${t.id}`,{method:'POST',headers:getHeaders()}); } }catch(e){} finally{ hideLoading(); closeTableActions(); loadOpenTables(); }}
+        async function adminActionMerge(){ const tgt=prompt('Birleştirilecek masa numarası:'); if(!tgt) return; showLoading(); try{ const r=await fetch('/api/tables?active_only=false',{headers:getHeaders()}); const d=await r.json(); const t=d.find(x=>x.number==parseInt(tgt)); if(!t){ alert('Masa bulunamadı'); } else { await fetch(`/api/tables/merge/${actionTableId}/${t.id}`,{method:'POST',headers:getHeaders()}); } }catch(e){} finally{ hideLoading(); closeTableActions(); loadOpenTables(); }}
+        async function adminActionCancel(){ showLoading(); try{ const dr=await fetch(`/api/tables/details/${actionTableId}`,{headers:getHeaders()}); const d=await dr.json(); const active=(d.orders||[]).filter(o=>['pending','preparing','bekliyor','hazirlaniyor'].includes((o.status||'').toLowerCase())); for(const o of active){ await fetch(`/api/orders/${o.id}/status`,{method:'PUT',headers:getHeaders(),body:JSON.stringify({status:'cancelled'})}); } }catch(e){} finally{ hideLoading(); closeTableActions(); loadOpenTables(); }}
+        
+        // --- ÜRÜN EKLEME FONKSİYONLARI ---
+        let adminCart = [];
+        let adminProducts = [];
+        let adminCategories = [];
+        let addProductTableId = null;
+        let addProductTableNum = null;
+        
+        function adminAddProduct(tableId, tableNum) {
+            addProductTableId = tableId;
+            addProductTableNum = tableNum;
+            document.getElementById('addProductTitle').innerText = `Masa ${tableNum} - Ürün Ekle`;
+            adminCart = [];
+            loadAdminMenuData();
+            document.getElementById('addProductModalAdmin').classList.remove('hidden');
+            document.getElementById('addProductModalAdmin').classList.add('flex');
+        }
+        
+        function adminAddProductFromActions() {
+            closeTableActions();
+            adminAddProduct(actionTableId, actionTableNum);
+        }
+        
+        function closeAddProductModal() {
+            document.getElementById('addProductModalAdmin').classList.add('hidden');
+            document.getElementById('addProductModalAdmin').classList.remove('flex');
+            adminCart = [];
+        }
+        
+        async function loadAdminMenuData() {
+            try {
+                const cr = await fetch('/api/products/categories', {headers: getHeaders()});
+                const cd = await cr.json();
+                adminCategories = cd.categories || cd;
+                
+                const pr = await fetch('/api/products?available_only=true', {headers: getHeaders()});
+                const pd = await pr.json();
+                adminProducts = Array.isArray(pd) ? pd : (pd.products || []);
+                
+                renderAdminMenu();
+            } catch(e) { console.error(e); }
+        }
+        
+        function renderAdminMenu() {
+            const catsDiv = document.getElementById('adminCategories');
+            const prodsDiv = document.getElementById('adminProducts');
+            
+            catsDiv.innerHTML = `<button onclick="filterAdminCat(null)" class="px-3 py-2 bg-blue-600 text-white rounded-lg font-medium">Tümü</button>` + 
+                adminCategories.map(c => `<button onclick="filterAdminCat(${c.id})" class="px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 font-medium">${c.name}</button>`).join('');
+            
+            renderAdminProducts(adminProducts);
+            renderAdminCartSummary();
+        }
+        
+        function filterAdminCat(catId) {
+            const filtered = catId ? adminProducts.filter(p => p.category_id == catId) : adminProducts;
+            renderAdminProducts(filtered);
+        }
+        
+        function renderAdminProducts(products) {
+            const prodsDiv = document.getElementById('adminProducts');
+            prodsDiv.innerHTML = products.map(p => {
+                const inCart = adminCart.find(x => x.product_id == p.id);
+                const qty = inCart ? inCart.quantity : 0;
+                const selectedClass = qty > 0 ? 'bg-green-50 border-green-400 border-2' : 'border-gray-200';
+                return `<div class="border rounded-xl p-3 ${selectedClass}">
+                    <div class="font-bold text-gray-800 text-sm">${p.name}</div>
+                    <div class="text-sm text-gray-500 mb-2">${(p.price||0).toFixed(2)} ₺</div>
+                    <div class="flex items-center justify-between">
+                        ${qty > 0 ? `
+                            <div class="flex items-center gap-2">
+                                <button onclick="removeFromAdminCart(${p.id})" class="w-7 h-7 flex items-center justify-center bg-red-500 text-white rounded-full text-sm font-bold">-</button>
+                                <span class="font-bold text-green-600">${qty}</span>
+                                <button onclick="addToAdminCart(${p.id})" class="w-7 h-7 flex items-center justify-center bg-green-500 text-white rounded-full text-sm font-bold">+</button>
+                            </div>
+                        ` : `
+                            <button onclick="addToAdminCart(${p.id})" class="w-full py-1.5 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600">+ Ekle</button>
+                        `}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        
+        function addToAdminCart(pid) {
+            const p = adminProducts.find(x => x.id == pid);
+            if(!p) return;
+            const i = adminCart.find(x => x.product_id == pid);
+            if(i) i.quantity += 1;
+            else adminCart.push({product_id: pid, quantity: 1, extras: {}});
+            renderAdminProducts(adminProducts);
+            renderAdminCartSummary();
+        }
+        
+        function removeFromAdminCart(pid) {
+            const i = adminCart.findIndex(x => x.product_id == pid);
+            if(i >= 0) {
+                if(adminCart[i].quantity > 1) adminCart[i].quantity--;
+                else adminCart.splice(i, 1);
+            }
+            renderAdminProducts(adminProducts);
+            renderAdminCartSummary();
+        }
+        
+        function renderAdminCartSummary() {
+            const summary = document.getElementById('adminCartSummary');
+            if(adminCart.length === 0) {
+                summary.innerHTML = '<span class="text-gray-400">Sepet boş</span>';
+                return;
+            }
+            let total = 0;
+            const items = adminCart.map(c => {
+                const p = adminProducts.find(x => x.id == c.product_id);
+                if(!p) return '';
+                const subtotal = (p.price || 0) * c.quantity;
+                total += subtotal;
+                return `<span class="inline-block bg-green-100 text-green-700 px-2 py-1 rounded mr-1 mb-1">${c.quantity}x ${p.name}</span>`;
+            }).join('');
+            summary.innerHTML = `${items}<div class="mt-2 font-bold text-lg text-green-600">Toplam: ${total.toFixed(2)} ₺</div>`;
+        }
+        
+        async function submitAdminOrder() {
+            if(!addProductTableNum || adminCart.length === 0) {
+                alert('Ürün seçin');
+                return;
+            }
+            showLoading();
+            try {
+                const body = {table_number: addProductTableNum, items: adminCart};
+                const r = await fetch('/api/orders', {method: 'POST', headers: getHeaders(), body: JSON.stringify(body)});
+                if(r.ok) {
+                    showToast('Sipariş gönderildi!', 'green');
+                    closeAddProductModal();
+                    loadOpenTables();
+                } else {
+                    alert('Sipariş hatası');
+                }
+            } catch(e) {
+                alert('İstek hatası');
+            } finally {
+                hideLoading();
+            }
+        }
+        async function loadOpenTables(){ showLoading(); try{ const r=await fetch('/api/tables/open', {headers:getHeaders()}); const d=await r.json(); const adminGrid=document.getElementById('openTablesGridAdmin'); if(adminGrid){ const items=(d||[]).map(t=>`<div class="border rounded-xl p-4 ${t.total_amount>0?'border-green-300 bg-green-50':'border-gray-200 bg-white'}"><div class="flex justify-between items-center cursor-pointer" onclick="openTableActions(${t.table_id}, ${t.table_number})"><div class="font-bold">Masa ${t.table_number}</div><div class="font-mono">${(t.total_amount||0).toFixed(2)} ₺</div></div><div class="mt-2 text-xs text-gray-600">${t.items.length} kalem</div><div class="mt-3 flex gap-2"><button onclick="adminAddProduct(${t.table_id}, ${t.table_number})" class="flex-1 bg-green-500 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-green-600 transition">➕ Ürün Ekle</button><button onclick="openTableActions(${t.table_id}, ${t.table_number})" class="flex-1 bg-blue-500 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition">⚙️ İşlemler</button></div></div>`).join(''); adminGrid.innerHTML=items||'<div class="text-gray-400 text-sm">Hiç açık masa yok</div>'; } const tablesGrid=document.getElementById('openTablesGridTables'); if(tablesGrid){ const items=(d||[]).map(t=>`<div class="border rounded-xl p-4 ${t.total_amount>0?'border-green-300 bg-green-50':'border-gray-200 bg-white'}"><div class="flex justify-between items-center cursor-pointer" onclick="openTableActions(${t.table_id}, ${t.table_number})"><div class="font-bold">Masa ${t.table_number}</div><div class="font-mono">${(t.total_amount||0).toFixed(2)} ₺</div></div><div class="mt-2 text-xs text-gray-600">${t.items.length} kalem</div><div class="mt-3 flex gap-2"><button onclick="adminAddProduct(${t.table_id}, ${t.table_number})" class="flex-1 bg-green-500 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-green-600 transition">➕ Ürün Ekle</button><button onclick="openTableActions(${t.table_id}, ${t.table_number})" class="flex-1 bg-blue-500 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-600 transition">⚙️ İşlemler</button></div></div>`).join(''); tablesGrid.innerHTML=items||'<div class="text-gray-400 text-sm">Hiç açık masa yok</div>'; } }catch(e){} finally{ hideLoading(); }}
+
         async function loadProductMatrix(){
             showLoading();
             try{
@@ -418,14 +894,26 @@
         async function loadLeague(){
             showLoading();
             try{
-                const usersRes = await fetch('/api/auth/users', {headers: getHeaders()});
-                const users = await usersRes.json();
+                const res = await fetch('/api/admin/league', {headers: getHeaders()});
+                const data = await res.json();
                 const tbody = document.getElementById('leagueTable');
-                const rows = (users || []).map(u => {
-                    return `<tr><td class="p-3 font-medium text-gray-800">${u.username}</td><td class="p-3 text-right font-mono">-</td><td class="p-3 text-right font-mono">-</td></tr>`;
+                const rows = (data || []).map((w, index) => {
+                    // İlk 3 için özel renkler
+                    let rankIcon = '';
+                    let rowClass = '';
+                    if(index === 0) { rankIcon = '🥇'; rowClass = 'bg-yellow-50'; }
+                    else if(index === 1) { rankIcon = '🥈'; rowClass = 'bg-gray-50'; }
+                    else if(index === 2) { rankIcon = '🥉'; rowClass = 'bg-orange-50'; }
+                    else { rankIcon = `<span class="text-gray-400">${index + 1}</span>`; }
+                    
+                    return `<tr class="${rowClass} hover:bg-gray-100 transition">
+                        <td class="p-3 text-center text-xl">${rankIcon}</td>
+                        <td class="p-3 font-medium text-gray-800">${w.full_name || w.username}</td>
+                        <td class="p-3 text-right font-bold text-blue-600 font-mono">${w.total_orders} puan</td>
+                    </tr>`;
                 }).join('');
-                tbody.innerHTML = rows;
-            }catch(e){}finally{hideLoading();}
+                tbody.innerHTML = rows || '<tr><td colspan="3" class="p-4 text-center text-gray-400">Henüz garson yok</td></tr>';
+            }catch(e){ console.error('League yüklenemedi:', e); }finally{hideLoading();}
         }
 
         async function loadStock(){
@@ -442,6 +930,8 @@
                         <td class="p-4 text-center"><button onclick="${p.track_stock ? `saveStock(${p.id})` : `toggleTrack(${p.id}, true)`}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">${p.track_stock ? 'Güncelle' : 'Takibi Aç'}</button></td>
                     </tr>
                 `).join('');
+                // Kritik stok uyarılarını yükle
+                loadCriticalStockAlerts('stock');
             }catch(e){}finally{hideLoading();}
         }
 
@@ -450,8 +940,8 @@
             try{
                 const input = document.getElementById('stock-' + productId);
                 const qty = parseInt(input.value||'0');
-                const res = await fetch('/api/products/' + productId, {method:'PUT', headers: getHeaders(), body: JSON.stringify({stock: qty})});
-                if(res.ok){ loadStock(); }
+                const res = await fetch('/api/products/' + productId, {method:'PUT', headers: getHeaders(), body: JSON.stringify({stock: qty, initial_stock: qty})});
+                if(res.ok){ loadStock(); loadCriticalStockAlerts('all'); }
                 else{ alert('Güncelleme başarısız'); }
             }catch(e){ alert('İstek hatası'); }finally{ hideLoading(); }
         }
@@ -496,7 +986,69 @@
                         options: { responsive: true, maintainAspectRatio: false }
                     });
                 }
+                // Kritik stok uyarılarını yükle
+                loadCriticalStockAlerts('dashboard');
             } catch(e){} finally { hideLoading(); }
+        }
+
+        // --- KRİTİK STOK UYARILARI ---
+        async function loadCriticalStockAlerts(target) {
+            try {
+                const res = await fetch('/api/admin/critical-stock', {headers: getHeaders()});
+                if(!res.ok) return;
+                const data = await res.json();
+                const products = data.critical_products || [];
+                
+                // Dashboard için
+                if(target === 'dashboard' || target === 'all') {
+                    const container = document.getElementById('criticalStockAlertsDashboard');
+                    const grid = document.getElementById('criticalStockGridDashboard');
+                    if(container && grid) {
+                        if(products.length > 0) {
+                            container.classList.remove('hidden');
+                            grid.innerHTML = products.map(p => `
+                                <div class="critical-stock-alert rounded-xl p-4">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <i class="fas fa-exclamation-circle text-red-500"></i>
+                                        <span class="font-bold text-red-700">${p.name}</span>
+                                    </div>
+                                    <div class="text-sm text-red-600">
+                                        Stok: <span class="font-bold">${p.current_stock}</span> adet
+                                        <span class="text-xs text-red-400 ml-2">(%${p.percentage})</span>
+                                    </div>
+                                </div>
+                            `).join('');
+                        } else {
+                            container.classList.add('hidden');
+                        }
+                    }
+                }
+                
+                // Stok sekmesi için
+                if(target === 'stock' || target === 'all') {
+                    const container = document.getElementById('criticalStockAlertsStock');
+                    const grid = document.getElementById('criticalStockGridStock');
+                    if(container && grid) {
+                        if(products.length > 0) {
+                            container.classList.remove('hidden');
+                            grid.innerHTML = products.map(p => `
+                                <div class="critical-stock-alert rounded-xl p-4">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <i class="fas fa-exclamation-circle text-red-500"></i>
+                                        <span class="font-bold text-red-700">${p.name}</span>
+                                    </div>
+                                    <div class="text-sm text-red-600">
+                                        Stok: <span class="font-bold">${p.current_stock}</span> adet
+                                        <span class="text-xs text-red-400 ml-2">(%${p.percentage})</span>
+                                    </div>
+                                </div>
+                            `).join('');
+                        } else {
+                            container.classList.add('hidden');
+                        }
+                    }
+                }
+            } catch(e) { console.error('Kritik stok yüklenemedi:', e); }
         }
 
         // --- DİĞER FONKSİYONLAR ---
@@ -510,13 +1062,19 @@
                 document.getElementById('productsTable').innerHTML = products.map(p => {
                     const imgUrl = (p.image_url && p.image_url.length > 5) ? p.image_url : placeholderSvg;
                     const catName = p.category ? p.category.name : (categories.find(c => c.id == p.category_id)?.name || '-');
+                    const stockBtnClass = p.track_stock ? 'bg-green-100 text-green-700 border-green-300' : 'bg-gray-100 text-gray-500 border-gray-300';
+                    const stockBtnText = p.track_stock ? '<i class="fas fa-box-open mr-1"></i>Takip Açık' : '<i class="fas fa-box mr-1"></i>Takip Kapalı';
+                    const stockInfo = p.track_stock ? `<span class="text-xs text-gray-400 ml-2">(Stok: ${p.stock || 0})</span>` : '';
                     return `
                     <tr class="border-b hover:bg-gray-50 transition">
                         <td class="p-4"><div class="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 border"><img src="${imgUrl}" class="w-full h-full object-cover" onerror="this.src='${placeholderSvg}'"></div></td>
-                        <td class="p-4 font-medium text-gray-800">${p.name}</td>
+                        <td class="p-4 font-medium text-gray-800">${p.name}${stockInfo}</td>
                         <td class="p-4 text-sm text-gray-500">${catName}</td>
                         <td class="p-4 font-bold text-green-600 font-mono">${p.price.toFixed(2)} ₺</td>
-                        <td class="p-4 text-center"><button onclick="deleteProduct(${p.id})" class="text-red-500 hover:bg-red-50 p-2 rounded-full transition"><i class="fas fa-trash"></i></button></td>
+                        <td class="p-4 text-center flex items-center justify-center gap-2">
+                            <button onclick="toggleStockTrack(${p.id}, ${!p.track_stock})" class="px-2 py-1 text-xs border rounded ${stockBtnClass} hover:opacity-80 transition">${stockBtnText}</button>
+                            <button onclick="deleteProduct(${p.id})" class="text-red-500 hover:bg-red-50 p-2 rounded-full transition"><i class="fas fa-trash"></i></button>
+                        </td>
                     </tr>`;
                 }).join('');
             } catch(e){} finally { hideLoading(); }
@@ -524,6 +1082,28 @@
         // (Diğer fonksiyonlar ürün ekleme/silme vb. aynı mantıkla buraya eklenebilir, yer kaplamaması için kısalttım)
         
         async function saveProduct(e){e.preventDefault();showLoading();const fd=new FormData(e.target);const d={name:fd.get('name'),description:fd.get('description'),price:parseFloat(fd.get('price')),category_id:parseInt(fd.get('category_id')),is_active:true};try{const r=await fetch('/api/products',{method:'POST',headers:getHeaders(),body:JSON.stringify(d)});if(r.ok){const np=await r.json();const im=document.getElementById('productImage').files[0];if(im){const f=new FormData();f.append('file',im);await fetch(`/api/products/${np.id}/image`,{method:'POST',headers:{'Authorization':`Bearer ${authToken}`},body:f});}closeProductModal();loadProducts();alert('Eklendi!');}else alert('Hata');}catch(e){alert(e);}finally{hideLoading();}}
+        
+        // Stok takibi açma/kapama fonksiyonu
+        async function toggleStockTrack(productId, newStatus) {
+            showLoading();
+            try {
+                const res = await fetch('/api/products/' + productId, {
+                    method: 'PUT',
+                    headers: getHeaders(),
+                    body: JSON.stringify({ track_stock: newStatus, stock: newStatus ? 0 : 0, initial_stock: 0 })
+                });
+                if(res.ok) {
+                    loadProducts();
+                    showToast(newStatus ? 'Stok takibi açıldı' : 'Stok takibi kapatıldı', newStatus ? 'green' : 'gray');
+                } else {
+                    alert('Güncelleme başarısız');
+                }
+            } catch(e) {
+                alert('İstek hatası');
+            } finally {
+                hideLoading();
+            }
+        }
         async function deleteProduct(id){if(confirm('Sil?')){showLoading();await fetch(`/api/products/${id}`,{method:'DELETE',headers:getHeaders()});loadProducts();hideLoading();}}
         async function openProductModal(){const r=await fetch('/api/products/categories');const d=await r.json();categories=d.categories||d;document.getElementById('categorySelect').innerHTML='<option>Seç</option>'+categories.map(c=>`<option value="${c.id}">${c.name}</option>`);document.getElementById('productModal').classList.remove('hidden');}
         function closeProductModal(){document.getElementById('productModal').classList.add('hidden');}
@@ -540,7 +1120,125 @@
         async function showQR(id){const r=await fetch(`/api/tables/${id}/qr`,{headers:getHeaders()});const d=await r.json();const w=window.open("","_blank");w.document.write(`<div style="text-align:center;margin-top:50px;font-family:sans-serif"><h1>${d.table_name}</h1><img src="${d.qr_url}" width="300"><br><button onclick="window.print()" style="margin-top:20px;padding:10px 20px;font-size:1.2em">YAZDIR</button></div>`);}
 
         // Siparişler
-        async function loadOrders(){showLoading();try{const r=await fetch('/api/orders',{headers:getHeaders()});const d=await r.json();document.getElementById('ordersTable').innerHTML=d.map(o=>`<tr class="border-b hover:bg-gray-50"><td class="p-4 text-gray-500 font-mono">#${o.id}</td><td class="p-4 font-bold">${o.table_name}</td><td class="p-4 font-bold text-slate-700">${o.total_amount.toFixed(2)} ₺</td><td class="p-4"><span class="bg-gray-100 px-2 py-1 rounded text-xs font-bold text-gray-600 uppercase">${o.status}</span></td><td class="p-4 text-sm text-gray-500">${new Date(o.created_at).toLocaleTimeString('tr-TR').slice(0,5)}</td><td class="p-4 text-center"><button onclick="cancelOrder(${o.id})" class="text-red-500 border border-red-200 px-2 py-1 rounded text-xs hover:bg-red-50">İptal</button></td></tr>`).join('');}catch(e){}finally{hideLoading();}}
+        let currentOrdersFilter = 'today';
+        
+        function setOrdersFilter(filter) {
+            currentOrdersFilter = filter;
+            // Buton stillerini güncelle
+            ['today','yesterday','week','custom'].forEach(f => {
+                const btn = document.getElementById('ordersFilter' + f.charAt(0).toUpperCase() + f.slice(1));
+                if(btn) {
+                    if(f === filter) {
+                        btn.classList.add('bg-blue-600', 'text-white');
+                        btn.classList.remove('text-gray-600', 'hover:bg-gray-100');
+                    } else {
+                        btn.classList.remove('bg-blue-600', 'text-white');
+                        btn.classList.add('text-gray-600', 'hover:bg-gray-100');
+                    }
+                }
+            });
+            // Tarih seçici göster/gizle
+            const datePicker = document.getElementById('ordersDatePicker');
+            if(datePicker) {
+                if(filter === 'custom') {
+                    datePicker.classList.remove('hidden');
+                } else {
+                    datePicker.classList.add('hidden');
+                    loadOrders();
+                }
+            }
+        }
+        
+        function getOrdersDateRange() {
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            let start, end;
+            
+            if(currentOrdersFilter === 'today') {
+                start = today;
+                end = new Date(today);
+                end.setHours(23,59,59,999);
+            } else if(currentOrdersFilter === 'yesterday') {
+                start = new Date(today);
+                start.setDate(start.getDate() - 1);
+                end = new Date(start);
+                end.setHours(23,59,59,999);
+            } else if(currentOrdersFilter === 'week') {
+                start = new Date(today);
+                start.setDate(start.getDate() - 7);
+                end = new Date(today);
+                end.setHours(23,59,59,999);
+            } else {
+                // custom - tarih seçiciden al
+                const startInput = document.getElementById('ordersStartDate');
+                const endInput = document.getElementById('ordersEndDate');
+                start = startInput?.value ? new Date(startInput.value) : today;
+                end = endInput?.value ? new Date(endInput.value) : today;
+                end.setHours(23,59,59,999);
+            }
+            return { start, end };
+        }
+        
+        async function loadOrders() {
+            showLoading();
+            try {
+                const r = await fetch('/api/orders', {headers:getHeaders()});
+                const allOrders = await r.json();
+                
+                // Tarih filtresine göre filtrele
+                const { start, end } = getOrdersDateRange();
+                const filtered = allOrders.filter(o => {
+                    const orderDate = new Date(o.created_at);
+                    return orderDate >= start && orderDate <= end;
+                });
+                
+                // Tarihe göre sırala (en yeni en üstte)
+                filtered.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+                
+                const statusColors = {
+                    'pending': 'bg-yellow-100 text-yellow-700',
+                    'preparing': 'bg-blue-100 text-blue-700',
+                    'ready': 'bg-green-100 text-green-700',
+                    'delivered': 'bg-gray-100 text-gray-600',
+                    'cancelled': 'bg-red-100 text-red-700'
+                };
+                
+                const paymentIcons = {
+                    'cash': '💵 Nakit',
+                    'card': '💳 Kart',
+                    null: '-',
+                    undefined: '-'
+                };
+                
+                document.getElementById('ordersTable').innerHTML = filtered.length > 0 ? filtered.map(o => {
+                    const statusClass = statusColors[o.status?.toLowerCase()] || 'bg-gray-100 text-gray-600';
+                    const paymentText = paymentIcons[o.payment_method] || '-';
+                    const dateTime = new Date(o.created_at);
+                    const dateStr = dateTime.toLocaleDateString('tr-TR', {day:'2-digit', month:'2-digit'});
+                    const timeStr = dateTime.toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'});
+                    
+                    return `<tr class="border-b hover:bg-gray-50">
+                        <td class="p-4 text-gray-500 font-mono">#${o.id}</td>
+                        <td class="p-4 font-bold">${o.table_name || 'Masa ' + o.table_id}</td>
+                        <td class="p-4 font-bold text-slate-700">${(o.total_amount||0).toFixed(2)} ₺</td>
+                        <td class="p-4 text-sm">${paymentText}</td>
+                        <td class="p-4"><span class="px-2 py-1 rounded text-xs font-bold ${statusClass}">${o.status}</span></td>
+                        <td class="p-4 text-sm text-gray-500">${dateStr} ${timeStr}</td>
+                        <td class="p-4 text-center">
+                            ${o.status?.toLowerCase() !== 'cancelled' && o.status?.toLowerCase() !== 'delivered' ? 
+                                `<button onclick="cancelOrder(${o.id})" class="text-red-500 border border-red-200 px-2 py-1 rounded text-xs hover:bg-red-50">İptal</button>` : 
+                                '<span class="text-gray-400 text-xs">-</span>'}
+                        </td>
+                    </tr>`;
+                }).join('') : '<tr><td colspan="7" class="p-8 text-center text-gray-400">Bu tarih aralığında sipariş bulunamadı</td></tr>';
+            } catch(e) { console.error(e); } 
+            finally { hideLoading(); }
+        }
+        
+        function loadOrdersByDate() {
+            loadOrders();
+        }
+        
         async function cancelOrder(id){if(!confirm('İptal?'))return;showLoading();await fetch(`/api/orders/${id}/status`,{method:'PUT',headers:getHeaders(),body:JSON.stringify({status:'cancelled'})});loadOrders();hideLoading();}
 
         // Ayarlar ve Logo
@@ -549,6 +1247,58 @@
         async function loadSettings(){showLoading();try{const r=await fetch('/api/admin/settings',{headers:getHeaders()});if(r.ok){const d=await r.json();document.getElementById('setRestName').value=d.restaurant_name||'';document.getElementById('setCurrency').value=d.currency||'';document.getElementById('setTax').value=d.tax_rate||0;document.getElementById('setService').value=d.service_charge||0;document.getElementById('setTimeout').value=d.order_timeout_minutes||30;document.getElementById('setWifi').value=d.wifi_password||'';if(d.logo_url){const url=d.logo_url+'?t='+new Date().getTime();document.getElementById('currentLogo').src=url;document.getElementById('currentLogo').style.display='block';document.getElementById('logoPlaceholder').style.display='none';const al=document.getElementById('adminPanelLogo');if(al){al.src=url;al.style.display='block';al.classList.remove('hidden');}}}}catch(e){}finally{hideLoading();}}
         async function saveSettings(e){e.preventDefault();showLoading();const d={restaurant_name:document.getElementById('setRestName').value,currency:document.getElementById('setCurrency').value,tax_rate:parseFloat(document.getElementById('setTax').value),service_charge:parseFloat(document.getElementById('setService').value),order_timeout_minutes:parseInt(document.getElementById('setTimeout').value),wifi_password:document.getElementById('setWifi').value};await fetch('/api/admin/settings',{method:'PUT',headers:getHeaders(),body:JSON.stringify(d)});alert('Kaydedildi!');hideLoading();}
 
+        // --- BİLDİRİM SİSTEMİ ---
+        let notifications = [];
+        let notificationIdCounter = 0;
+        
+        function addNotification(data) {
+            const notification = {
+                id: ++notificationIdCounter,
+                type: data.type,
+                table_name: data.table_name,
+                table_number: data.table_number,
+                timestamp: data.timestamp || new Date().toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'}),
+                message: data.message
+            };
+            notifications.push(notification);
+            renderNotifications();
+        }
+        
+        function deleteNotification(id) {
+            notifications = notifications.filter(n => n.id !== id);
+            renderNotifications();
+        }
+        
+        function renderNotifications() {
+            const container = document.getElementById('notificationList');
+            if(!container) return;
+            
+            if(notifications.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            container.innerHTML = notifications.map(n => {
+                const isWaiterCall = n.type === 'waiter_call';
+                const bgColor = isWaiterCall ? 'bg-amber-50 border-amber-300' : 'bg-purple-50 border-purple-300';
+                const textColor = isWaiterCall ? 'text-amber-700' : 'text-purple-700';
+                const icon = isWaiterCall ? 'fa-bell' : 'fa-credit-card';
+                const iconColor = isWaiterCall ? 'text-amber-500' : 'text-purple-500';
+                const tableDisplay = n.table_number ? `Masa ${n.table_number}` : n.table_name;
+                
+                return `<div class="flex items-center gap-2 px-3 py-2 rounded-lg border ${bgColor} shadow-sm animate-pulse-once">
+                    <i class="fas ${icon} ${iconColor}"></i>
+                    <div class="flex-1">
+                        <div class="font-bold ${textColor} text-sm">${tableDisplay}</div>
+                        <div class="text-xs text-gray-500">${isWaiterCall ? 'Garson Çağrısı' : 'Hesap İsteği'} • ${n.timestamp}</div>
+                    </div>
+                    <button onclick="deleteNotification(${n.id})" class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-red-100 text-red-400 hover:text-red-600 transition" title="Bildirimi Sil">
+                        <i class="fas fa-times text-xs"></i>
+                    </button>
+                </div>`;
+            }).join('');
+        }
+        
         // WebSocket
         function connectWS() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -559,12 +1309,18 @@
                     const m = JSON.parse(e.data);
                     if(m.type === 'waiter_call' || m.type === 'bill_request') {
                         document.getElementById('bellSound').play().catch(()=>{});
+                        // Kalıcı bildirim paneline ekle
+                        addNotification(m);
+                        // Ayrıca kısa süreli toast da göster
                         showToast(m.message, m.type === 'bill_request' ? 'purple' : 'orange');
                     } else if(m.type === 'stock_warning') {
                         showToast(m.message, 'red');
                     } else if(m.type && m.type.includes('order')) {
                         if(!document.getElementById('dashboardSection').classList.contains('hidden')) loadDashboard();
                         if(!document.getElementById('ordersSection').classList.contains('hidden')) loadOrders();
+                        loadOpenTables();
+                    } else if(m.type === 'table_status') {
+                        loadOpenTables();
                     }
                 } catch(x){}
             };
@@ -584,7 +1340,486 @@
             showSection('dashboard');
             loadSettings();
             connectWS();
+            loadOpenTables();
+            // PDF buton metnini başlangıçta ayarla
+            updatePdfButtonText();
         };
+
+        async function loadWaiters(){
+            showLoading();
+            try{
+                const r = await fetch('/api/waiters', {headers: getHeaders()});
+                const d = await r.json();
+                const tbody = document.getElementById('waitersTable');
+                const rows = (d||[]).map(w => `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-4 font-medium">${w.full_name||'-'}</td>
+                        <td class="p-4">${w.username}</td>
+                        <td class="p-4 text-center"><button onclick="resetWaiterPin(${w.id})" class="bg-amber-600 text-white px-3 py-1 rounded mr-2">PIN Sıfırla</button><button onclick="deleteWaiter(${w.id})" class="bg-red-600 text-white px-3 py-1 rounded">Sil</button></td>
+                    </tr>
+                `);
+                tbody.innerHTML = rows.join('') || '<tr><td colspan="3" class="p-4 text-center text-gray-400">Garson yok</td></tr>';
+            }catch(e){}finally{hideLoading();}
+        }
+        async function addWaiter(){
+            const n = document.getElementById('newWaiterName').value.trim();
+            if(!n){ alert('Ad Soyad gerekli'); return; }
+            showLoading();
+            try{
+                const r = await fetch('/api/waiters', {method:'POST', headers:getHeaders(), body: JSON.stringify({full_name:n})});
+                if(r.ok){ const d=await r.json(); alert(`Garson eklendi. Şifre: ${d.pin}`); document.getElementById('newWaiterName').value=''; loadWaiters(); }
+                else{ alert('Ekleme başarısız'); }
+            }catch(x){ alert('İstek hatası'); }
+            finally{ hideLoading(); }
+        }
+        
+        async function deleteWaiter(id){
+            if(!confirm('Silinsin?')) return;
+            showLoading();
+            try{ await fetch('/api/waiters/'+id, {method:'DELETE', headers:getHeaders()}); loadWaiters(); }
+            catch(x){}
+            finally{ hideLoading(); }
+        }
+        async function resetWaiterPin(id){
+            showLoading();
+            try{ const r=await fetch('/api/waiters/'+id+'/reset-pin', {method:'POST', headers:getHeaders()}); if(r.ok){ const d=await r.json(); alert('Yeni PIN: '+d.pin); } else { alert('PIN sıfırlama başarısız'); } }
+            catch(x){ alert('İstek hatası'); }
+            finally{ hideLoading(); }
+        }
+
+        // --- KAPSAMLI RAPORLAMA SİSTEMİ ---
+        let currentReportType = 'daily';
+        let reportChartInstance = null;
+        
+        function setReportType(type) {
+            currentReportType = type;
+            ['daily', 'weekly', 'monthly', 'history'].forEach(t => {
+                const btn = document.getElementById('reportType' + t.charAt(0).toUpperCase() + t.slice(1));
+                if(btn) {
+                    if(t === type) {
+                        btn.classList.add('bg-blue-600', 'text-white');
+                        btn.classList.remove('text-gray-600', 'hover:bg-gray-100');
+                    } else {
+                        btn.classList.remove('bg-blue-600', 'text-white');
+                        btn.classList.add('text-gray-600', 'hover:bg-gray-100');
+                    }
+                }
+            });
+            
+            // PDF buton metnini güncelle
+            updatePdfButtonText();
+            
+            // History modunda farklı görünüm
+            const historySection = document.getElementById('historySection');
+            const datePicker = document.getElementById('reportDatePicker');
+            const actionButtons = document.getElementById('reportActionButtons');
+            
+            if(type === 'history') {
+                if(historySection) historySection.classList.remove('hidden');
+                if(datePicker) datePicker.classList.add('hidden');
+                if(actionButtons) actionButtons.classList.add('hidden');
+                loadReportHistory();
+            } else {
+                if(historySection) historySection.classList.add('hidden');
+                if(datePicker) datePicker.classList.remove('hidden');
+                if(actionButtons) actionButtons.classList.remove('hidden');
+                loadComprehensiveReport();
+            }
+        }
+        
+        async function loadComprehensiveReport() {
+            showLoading();
+            try {
+                let url = '';
+                const reportDate = document.getElementById('reportDate')?.value || new Date().toISOString().split('T')[0];
+                
+                if(currentReportType === 'daily') {
+                    url = `/api/admin/reports/daily-comprehensive?report_date=${reportDate}`;
+                } else if(currentReportType === 'weekly') {
+                    url = `/api/admin/reports/weekly-comprehensive`;
+                } else if(currentReportType === 'monthly') {
+                    url = `/api/admin/reports/monthly-comprehensive`;
+                }
+                
+                const res = await fetch(url, {headers: getHeaders()});
+                if(!res.ok) throw new Error('Rapor yüklenemedi');
+                const data = await res.json();
+                
+                renderComprehensiveReport(data);
+            } catch(e) {
+                console.error('Rapor hatası:', e);
+                document.getElementById('aiAnalysis').innerText = 'Rapor yüklenirken hata oluştu.';
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function renderComprehensiveReport(data) {
+            // Özet kartları
+            document.getElementById('repTotalRevenue').innerText = (data.total_revenue || 0).toFixed(2) + ' ₺';
+            document.getElementById('repCashTotal').innerText = (data.cash_total || 0).toFixed(2) + ' ₺';
+            document.getElementById('repCardTotal').innerText = (data.card_total || 0).toFixed(2) + ' ₺';
+            document.getElementById('repTotalOrders').innerText = data.total_orders || 0;
+            document.getElementById('repCancelledOrders').innerText = data.cancelled_orders || 0;
+            document.getElementById('repAvgOrder').innerText = (data.avg_order || 0).toFixed(2) + ' ₺';
+            
+            // Değişim
+            const changeEl = document.getElementById('repChange');
+            if(data.revenue_change !== undefined) {
+                const change = data.revenue_change;
+                const arrow = change >= 0 ? '↑' : '↓';
+                changeEl.innerText = `${arrow} ${Math.abs(change).toFixed(1)}%`;
+            } else {
+                changeEl.innerText = '-';
+            }
+            
+            // En çok satanlar
+            const topList = document.getElementById('topProductsList');
+            topList.innerHTML = (data.top_products || []).map((p, i) => `
+                <div class="flex justify-between items-center p-2 rounded ${i < 3 ? 'bg-yellow-50' : 'bg-gray-50'}">
+                    <span class="font-medium">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1)+'.'} ${p.name}</span>
+                    <span class="text-sm text-gray-600">${p.qty} adet</span>
+                </div>
+            `).join('') || '<div class="text-gray-400 text-sm">Veri yok</div>';
+            
+            // En az satanlar
+            const lowList = document.getElementById('lowProductsList');
+            lowList.innerHTML = (data.low_products || []).map(p => `
+                <div class="flex justify-between items-center p-2 rounded bg-red-50">
+                    <span class="font-medium text-red-700">${p.name}</span>
+                    <span class="text-sm text-red-600">${p.qty} adet</span>
+                </div>
+            `).join('') || '<div class="text-gray-400 text-sm">Veri yok</div>';
+            
+            // Garson performansı
+            const waiterList = document.getElementById('waiterStatsList');
+            waiterList.innerHTML = (data.waiter_stats || []).map((w, i) => `
+                <div class="flex justify-between items-center p-2 rounded ${i === 0 ? 'bg-green-50' : 'bg-gray-50'}">
+                    <span class="font-medium">${i === 0 ? '⭐' : ''} ${w.name}</span>
+                    <span class="text-sm font-bold text-blue-600">${w.total_orders} sipariş</span>
+                </div>
+            `).join('') || '<div class="text-gray-400 text-sm">Veri yok</div>';
+            
+            // Kritik stok
+            const stockList = document.getElementById('criticalStockList');
+            stockList.innerHTML = (data.critical_stock || []).map(s => `
+                <div class="flex justify-between items-center p-2 rounded bg-red-50 border border-red-200">
+                    <span class="font-medium text-red-700">⚠️ ${s.name}</span>
+                    <span class="text-sm font-bold text-red-600">${s.stock} adet</span>
+                </div>
+            `).join('') || '<div class="text-green-600 text-sm">✓ Kritik stok yok</div>';
+            
+            // Masa ve ürün sayısı
+            document.getElementById('repTotalTables').innerText = data.total_tables || 0;
+            document.getElementById('repTotalProducts').innerText = data.total_products || 0;
+            
+            // AI Analizi
+            document.getElementById('aiAnalysis').innerText = data.ai_analysis || 'AI analizi yüklenemedi.';
+            
+            // Grafik
+            renderReportChart(data.daily_breakdown || {});
+        }
+        
+        function renderReportChart(dailyData) {
+            const ctx = document.getElementById('reportChart')?.getContext('2d');
+            if(!ctx) return;
+            
+            // Veriyi sakla (grafik tipi değiştiğinde kullanmak için)
+            currentChartData = dailyData;
+            
+            if(reportChartInstance) reportChartInstance.destroy();
+            
+            const labels = Object.keys(dailyData).sort();
+            const revenues = labels.map(d => dailyData[d]?.revenue || 0);
+            const orders = labels.map(d => dailyData[d]?.orders || 0);
+            
+            // İstatistikleri hesapla
+            const maxRevenue = Math.max(...revenues);
+            const minRevenue = Math.min(...revenues.filter(r => r > 0));
+            const avgRevenue = revenues.reduce((a, b) => a + b, 0) / revenues.length;
+            
+            const maxIndex = revenues.indexOf(maxRevenue);
+            const minIndex = revenues.indexOf(minRevenue);
+            
+            // En iyi/en kötü gün bilgilerini güncelle
+            const maxDayEl = document.getElementById('chartMaxDay');
+            const minDayEl = document.getElementById('chartMinDay');
+            const avgDayEl = document.getElementById('chartAvgDay');
+            
+            if(maxDayEl && labels[maxIndex]) {
+                maxDayEl.innerText = new Date(labels[maxIndex]).toLocaleDateString('tr-TR', {day:'numeric', month:'short'}) + ' - ' + maxRevenue.toFixed(0) + '₺';
+            }
+            if(minDayEl && labels[minIndex] && minRevenue > 0) {
+                minDayEl.innerText = new Date(labels[minIndex]).toLocaleDateString('tr-TR', {day:'numeric', month:'short'}) + ' - ' + minRevenue.toFixed(0) + '₺';
+            }
+            if(avgDayEl) {
+                avgDayEl.innerText = avgRevenue.toFixed(0) + ' ₺';
+            }
+            
+            // Grafik renkleri
+            const gradientColors = revenues.map((r, i) => {
+                if(i === maxIndex) return 'rgba(34, 197, 94, 0.8)'; // Yeşil - en iyi
+                if(i === minIndex && r > 0) return 'rgba(239, 68, 68, 0.8)'; // Kırmızı - en kötü
+                return 'rgba(59, 130, 246, 0.7)'; // Mavi - normal
+            });
+            
+            // Grafik konfigürasyonu
+            let chartConfig = {};
+            
+            if(currentChartType === 'doughnut') {
+                // Pasta grafik için farklı yapı
+                const colorPalette = [
+                    'rgba(59, 130, 246, 0.8)',
+                    'rgba(34, 197, 94, 0.8)',
+                    'rgba(249, 115, 22, 0.8)',
+                    'rgba(139, 92, 246, 0.8)',
+                    'rgba(236, 72, 153, 0.8)',
+                    'rgba(20, 184, 166, 0.8)',
+                    'rgba(245, 158, 11, 0.8)'
+                ];
+                
+                chartConfig = {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels.map(d => new Date(d).toLocaleDateString('tr-TR', {day:'numeric', month:'short'})),
+                        datasets: [{
+                            data: revenues,
+                            backgroundColor: labels.map((_, i) => colorPalette[i % colorPalette.length]),
+                            borderWidth: 2,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'right',
+                                labels: { font: { size: 10 }, boxWidth: 12 }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.label + ': ' + context.raw.toFixed(2) + ' ₺';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                };
+            } else {
+                // Bar veya Line grafik
+                chartConfig = {
+                    type: currentChartType,
+                    data: {
+                        labels: labels.map(d => new Date(d).toLocaleDateString('tr-TR', {day:'numeric', month:'short'})),
+                        datasets: [{
+                            label: 'Ciro (₺)',
+                            data: revenues,
+                            backgroundColor: currentChartType === 'bar' ? gradientColors : 'rgba(59, 130, 246, 0.2)',
+                            borderColor: currentChartType === 'line' ? 'rgba(59, 130, 246, 1)' : gradientColors,
+                            borderWidth: currentChartType === 'line' ? 3 : 0,
+                            borderRadius: currentChartType === 'bar' ? 6 : 0,
+                            tension: 0.4,
+                            fill: currentChartType === 'line',
+                            pointBackgroundColor: currentChartType === 'line' ? gradientColors : undefined,
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            pointRadius: currentChartType === 'line' ? 5 : 0,
+                            pointHoverRadius: 7
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            intersect: false,
+                            mode: 'index'
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                                titleFont: { size: 13, weight: 'bold' },
+                                bodyFont: { size: 12 },
+                                padding: 12,
+                                cornerRadius: 8,
+                                displayColors: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        const idx = context.dataIndex;
+                                        const orderCount = orders[idx] || 0;
+                                        return [
+                                            'Ciro: ' + context.raw.toFixed(2) + ' ₺',
+                                            'Sipariş: ' + orderCount + ' adet'
+                                        ];
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(0,0,0,0.05)' },
+                                ticks: {
+                                    callback: function(value) {
+                                        return value.toLocaleString('tr-TR') + ' ₺';
+                                    }
+                                }
+                            },
+                            x: {
+                                grid: { display: false }
+                            }
+                        }
+                    }
+                };
+            }
+            
+            reportChartInstance = new Chart(ctx, chartConfig);
+        }
+        
+        async function loadReportHistory() {
+            showLoading();
+            try {
+                const res = await fetch('/api/admin/reports/history-list', {headers: getHeaders()});
+                const data = await res.json();
+                
+                const historyList = document.getElementById('historyList');
+                historyList.innerHTML = (data.history || []).map(h => `
+                    <div class="flex justify-between items-center p-3 rounded-lg border hover:bg-gray-50 cursor-pointer" onclick="loadHistoryDay('${h.date}')">
+                        <div>
+                            <span class="font-bold">${h.day_name}</span>
+                            <span class="text-gray-500 ml-2">${h.date}</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="font-bold text-green-600">${h.revenue.toFixed(2)} ₺</span>
+                            <span class="text-gray-500 ml-2">${h.orders} sipariş</span>
+                        </div>
+                    </div>
+                `).join('') || '<div class="text-gray-400">Geçmiş veri yok</div>';
+            } catch(e) {
+                console.error(e);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function loadHistoryDay(dateStr) {
+            document.getElementById('reportDate').value = dateStr;
+            setReportType('daily');
+        }
+        
+        // Eski loadReports fonksiyonunu yeni sisteme yönlendir
+        async function loadReports() {
+            loadComprehensiveReport();
+        }
+        
+        // --- GRAFİK TİPİ DEĞİŞTİRME ---
+        let currentChartType = 'bar';
+        let currentChartData = null;
+        
+        function setChartType(type) {
+            currentChartType = type;
+            ['bar', 'line', 'doughnut'].forEach(t => {
+                const btn = document.getElementById('chartType' + t.charAt(0).toUpperCase() + t.slice(1));
+                if(btn) {
+                    if(t === type) {
+                        btn.classList.add('bg-blue-600', 'text-white');
+                        btn.classList.remove('bg-transparent', 'text-gray-600', 'hover:bg-gray-200');
+                    } else {
+                        btn.classList.remove('bg-blue-600', 'text-white');
+                        btn.classList.add('bg-transparent', 'text-gray-600', 'hover:bg-gray-200');
+                    }
+                }
+            });
+            if(currentChartData) {
+                renderReportChart(currentChartData);
+            }
+        }
+        
+        // --- PDF İNDİRME FONKSİYONU ---
+        async function downloadReportPdf() {
+            const statusEl = document.getElementById('pdfDownloadStatus');
+            if(statusEl) {
+                statusEl.classList.remove('hidden');
+            }
+            
+            try {
+                let url = '';
+                const reportDate = document.getElementById('reportDate')?.value || new Date().toISOString().split('T')[0];
+                
+                if(currentReportType === 'daily') {
+                    // Günlük rapor için kapanış PDF - tarih parametresi ekle
+                    url = `/api/admin/reports/closing-report-pdf?report_date=${reportDate}`;
+                } else {
+                    // Haftalık/Aylık için detaylı rapor
+                    const today = new Date();
+                    let startDate, endDate;
+                    
+                    if(currentReportType === 'weekly') {
+                        const dayOfWeek = today.getDay();
+                        const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+                        startDate = new Date(today.setDate(diff)).toISOString().split('T')[0];
+                        endDate = new Date(new Date(startDate).setDate(new Date(startDate).getDate() + 6)).toISOString().split('T')[0];
+                    } else {
+                        // Aylık
+                        startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+                        endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+                    }
+                    
+                    url = `/api/admin/reports/full-pdf?start_date=${startDate}&end_date=${endDate}&include_ai=true`;
+                }
+                
+                const res = await fetch(url, {headers: getHeaders()});
+                
+                if(res.ok) {
+                    const blob = await res.blob();
+                    const downloadUrl = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = downloadUrl;
+                    
+                    // Dosya adını belirle
+                    let filename = 'rapor.pdf';
+                    if(currentReportType === 'daily') {
+                        filename = `kapanis_raporu_${reportDate}.pdf`;
+                    } else if(currentReportType === 'weekly') {
+                        filename = `haftalik_rapor_${new Date().toISOString().split('T')[0]}.pdf`;
+                    } else {
+                        filename = `aylik_rapor_${new Date().toISOString().split('T')[0]}.pdf`;
+                    }
+                    
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(downloadUrl);
+                    
+                    showToast('PDF başarıyla indirildi!', 'green');
+                } else {
+                    throw new Error('PDF oluşturulamadı');
+                }
+            } catch(e) {
+                console.error('PDF indirme hatası:', e);
+                showToast('PDF indirilemedi. Lütfen tekrar deneyin.', 'red');
+            } finally {
+                if(statusEl) {
+                    statusEl.classList.add('hidden');
+                }
+            }
+        }
+        
+        // --- PDF BUTON METNİNİ GÜNCELLE ---
+        function updatePdfButtonText() {
+            const btnText = document.getElementById('pdfBtnText');
+            if(btnText) {
+                if(currentReportType === 'daily') {
+                    btnText.innerText = 'Kapanış PDF İndir';
+                } else {
+                    btnText.innerText = 'Detaylı Rapor İndir';
+                }
+            }
+        }
     </script>
 </body>
 </html>
